@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { VideoAnalysis } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
+import { SentimentChart } from "@/components/SentimentChart";
 
 
 // 데이터 가져오는 함수 (Server Side)
@@ -39,7 +40,12 @@ export default async function Home() {
           </Badge>
         </div>
 
-        {/* 그리드 */}
+        {/* 차트 영역 (데이터가 있을 때만) */}
+        {data.length > 0 && (
+          <SentimentChart data={data} />
+        )}
+
+        {/* 비디오 카드 그리드 */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((item) => (
             <VideoCard key={item.id} item={item} />

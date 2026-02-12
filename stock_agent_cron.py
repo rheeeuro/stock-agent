@@ -8,6 +8,7 @@ import os
 import time
 import requests
 import re
+import json
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -30,20 +31,29 @@ CHAT_ID = os.getenv('CHAT_ID', '')
 # AI 분석 프롬프트 템플릿. {title}, {content} 플레이스홀더 사용. .env의 AI_PROMPT_TEMPLATE으로 덮어쓰기 가능
 AI_PROMPT_TEMPLATE = """
         영상 제목: {title}
-        내용 요약 및 투자 인사이트를 정리해줘.
+
+        다음 두 가지를 분석해서 반드시 **JSON 포맷**으로만 출력해.
+        1. sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
+        2. content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
         
-        [반드시 아래 Markdown 형식을 지켜서 출력해]:
+            [반드시 아래 Markdown 형식을 지켜서 출력해]:
+            
+            ## 1. 3줄 핵심 요약
+            - (요약 1)
+            - (요약 2)
+            - (요약 3)
+            
+            ## 2. 주요 언급 종목
+            - **종목명**: (호재/악재 판단)
+            
+            ## 3. 대응 전략
+            > (한 줄 조언)
         
-        ## 1. 3줄 핵심 요약
-        - (요약 1)
-        - (요약 2)
-        - (요약 3)
-        
-        ## 2. 주요 언급 종목
-        - **종목명**: (호재/악재 판단)
-        
-        ## 3. 대응 전략
-        > (한 줄 조언)
+        예시 형식:
+        {{
+            "sentiment_score": 75,
+            "content": "## 1. 요약\\n- 내용..."
+        }}
 
         [자막 내용]: {content}
         """
@@ -100,18 +110,18 @@ class StockYoutubeAgent:
         # 최종 공백 정리
         return content.strip()
 
-    def save_analysis(self, video_id, channel, title, content):
+    def save_analysis(self, video_id, channel, title, content, score):
         try:
             # 앞뒤의 markdown 코드 블록 마커 제거
             content = self.remove_markdown_code_blocks(content)
             
             query = """
-                INSERT INTO video_analysis (video_id, channel_name, video_title, analysis_content)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO video_analysis (video_id, channel_name, video_title, analysis_content, sentiment_score)
+                VALUES (%s, %s, %s, %s, %s)
             """
-            self.cursor.execute(query, (video_id, channel, title, content))
+            self.cursor.execute(query, (video_id, channel, title, content, score))
             self.conn.commit()
-            print(f"✅ DB 저장 완료: {title}")
+            print(f"✅ DB 저장 완료: {title} (점수: {score}점)")
         except mysql.connector.Error as err:
             print(f"❌ DB 저장 에러: {err}")
 
@@ -136,45 +146,65 @@ class StockYoutubeAgent:
             response = ollama.chat(model=model_name, messages=[
                 {'role': 'user', 'content': prompt}
             ])
-            result = response['message']['content']
-            print(f"✅ AI 분석 완료: {len(result)}자")
-            return result
+            raw_content = response['message']['content']
+            
+            # DeepSeek 모델 특성상 <think> 태그나 ```json 마크다운이 섞일 수 있어 제거
+            clean_json = raw_content.replace('```json', '').replace('```', '').strip()
+
+            # <think> 태그 제거 로직 (DeepSeek-R1 대응)
+            if '</think>' in clean_json:
+                clean_json = clean_json.split('</think>')[-1].strip()
+
+            data = json.loads(clean_json)
+            print(f"✅ AI 분석 완료: {len(data['content'])}자, 점수: {data['sentiment_score']}점")
+            return data['content'], data['sentiment_score']
+
         except Exception as e:
-            print(f"❌ AI 분석 에러: {e}")
-            print(f"💡 사용 가능한 모델 확인: docker exec stock_ollama ollama list")
-            print(f"💡 모델 설치 예시: docker exec stock_ollama ollama pull {model_name}")
-            return None
+            print(f"❌ AI 분석/파싱 에러: {e}")
+            # 에러 나면 기본값 반환 (내용은 원본, 점수는 50)
+            return "분석 실패", 50
     
-    def send_telegram(self, channel, title, analysis):
+    def send_telegram(self, channel, title, analysis, score=50):
         """텔레그램 메시지 발송 함수"""
         try:
-            # 앞뒤의 markdown 코드 블록 마커 제거
-            analysis = self.remove_markdown_code_blocks(analysis)
-            
-            # 메시지가 너무 길면 텔레그램 전송이 실패할 수 있어 800자로 제한
+            # 1. 상태 이모지 결정
+            if score >= 80:
+                status = "🔥 *강력 매수* (탐욕)"
+            elif score >= 60:
+                status = "📈 *긍정적* (매수)"
+            elif score <= 20:
+                status = "🥶 *공포* (현금화)"
+            elif score <= 40:
+                status = "📉 *부정적* (보수적)"
+            else:
+                status = "😐 *중립* (관망)"
+
+            # 2. 메시지 길이 제한 (너무 길면 전송 실패함)
             short_analysis = analysis[:800] + "..." if len(analysis) > 800 else analysis
             
+            # 3. 마크다운 변환 (중요!)
+            # AI는 '**'를 쓰지만 텔레그램(Legacy Markdown)은 '*'가 볼드체입니다.
+            # 따라서 '**'를 '*'로 바꿔줘야 텔레그램에서 예쁘게 나옵니다.
+            formatted_analysis = short_analysis.replace("**", "*")
             message = (
-                f"🚨 [{channel}] 새 리포트 도착!\n"
-                f"📺 {title}\n\n"
-                f"{short_analysis}\n\n"
-                f"👉 대시보드: https://stock.rheeeuro.com/"
+                f"🚨 *[{channel}] 분석 완료!*\n"
+                f"📊 관점: {score}점 - {status}\n\n"
+                f"📺 {title}\n"
+                f"──────────────────\n"
+                f"{formatted_analysis}\n\n"
+                f"👉 [대시보드 바로가기](https://stock.rheeeuro.com)" # 링크 거는 문법
             )
             
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
             data = {
                 "chat_id": CHAT_ID,
                 "text": message,
-                "parse_mode": "Markdown"
+                "parse_mode": "Markdown", # ✅ 핵심: "이거 마크다운이야!"라고 알려줌
+                "disable_web_page_preview": True # (선택) 링크 미리보기 끄기 (깔끔하게)
             }
             
-            # 타임아웃 10초 설정
-            res = requests.post(url, data=data, timeout=10)
-            
-            if res.status_code == 200:
-                print(f"📨 텔레그램 전송 성공")
-            else:
-                print(f"⚠️ 텔레그램 전송 실패: {res.text}")
+            requests.post(url, data=data, timeout=10)
+            print(f"📨 텔레그램 전송 성공: {title} ({score}점)")
                 
         except Exception as e:
             print(f"❌ 텔레그램 에러: {e}")
@@ -204,13 +234,13 @@ class StockYoutubeAgent:
                 script_text = self.get_transcript(video_id)
                 
                 if script_text:
-                    analysis = self.analyze_with_ai(script_text, video_title)
+                    analysis, score = self.analyze_with_ai(script_text, video_title)
                     if analysis:
                         # 1. DB 저장
-                        self.save_analysis(video_id, name, video_title, analysis)
+                        self.save_analysis(video_id, name, video_title, analysis, score)
                         
-                        # 2. ✅ 텔레그램 전송
-                        self.send_telegram(name, video_title, analysis)
+                        # 2. 텔레그램 전송 (✅ score 인자 전달)
+                        self.send_telegram(name, video_title, analysis, score)
                         
                         # 3. 연속 호출 방지 딜레이
                         time.sleep(2)
