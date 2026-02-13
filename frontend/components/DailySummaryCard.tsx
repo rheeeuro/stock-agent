@@ -12,11 +12,11 @@ export function DailySummaryCard({ summary }: Props) {
   return (
     <Card className="border-2 border-slate-200 dark:border-slate-800">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-xl">
             🤖 오늘의 AI 투자 전략
           </CardTitle>
-          <div className="flex items-center text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800">
+          <div className="flex items-center text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 shrink-0 w-fit">
             <Calendar className="w-4 h-4 mr-1" />
             {summary.report_date}
           </div>

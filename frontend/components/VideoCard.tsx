@@ -19,16 +19,16 @@ function CardBody({ item }: { item: VideoAnalysis }) {
   return (
     <>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between mb-2">
-          <Badge variant="outline" className="group-hover:bg-slate-100 dark:group-hover:bg-slate-800">
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <Badge variant="outline" className="group-hover:bg-slate-100 dark:group-hover:bg-slate-800 shrink-0">
             {item.channel_name}
           </Badge>
-          <span className="text-xs text-slate-400 flex items-center gap-1" suppressHydrationWarning>
+          <span className="text-xs text-slate-400 flex items-center gap-1 shrink-0 whitespace-nowrap" suppressHydrationWarning>
             <Calendar size={12} />
             {new Date(item.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
           </span>
         </div>
-        <CardTitle className="text-lg leading-snug line-clamp-2 min-h-[3.5rem] group-hover:text-blue-600 transition-colors">
+        <CardTitle className="text-left text-lg leading-snug line-clamp-2 min-h-[3.5rem] group-hover:text-blue-600 transition-colors" title={item.video_title}>
           {item.video_title}
         </CardTitle>
       </CardHeader>
@@ -38,7 +38,7 @@ function CardBody({ item }: { item: VideoAnalysis }) {
         </p>
       </CardContent>
       <CardFooter className="pt-0 pb-4">
-        <Button variant="secondary" className="w-full h-8 text-xs">
+        <Button variant="secondary" className="w-full h-8 text-xs cursor-pointer">
           상세 분석 보기
         </Button>
       </CardFooter>
@@ -70,10 +70,10 @@ export function VideoCard({ item }: VideoCardProps) {
           <div className="flex items-center gap-2 mb-2">
             <Badge>{item.channel_name}</Badge>
             <span className="text-sm text-slate-500" suppressHydrationWarning>
-              {new Date(item.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
+              {new Date(item.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
             </span>
           </div>
-          <DialogTitle className="text-xl leading-relaxed break-words">
+          <DialogTitle className="text-left text-xl leading-relaxed break-words">
             {item.video_title}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-2 pt-2">
