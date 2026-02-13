@@ -19,3 +19,4 @@ wheels/
 mariadb_data/
 ollama_data/
 ecosystem.config.js
+docker-compose.yml
