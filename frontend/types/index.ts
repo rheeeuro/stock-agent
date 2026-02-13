@@ -7,3 +7,12 @@ export interface VideoAnalysis {
   sentiment_score?: number;
   created_at: string;
 }
+
+export interface DailySummary {
+  id: number;
+  report_date: string;
+  buy_stock: string;
+  buy_reason: string;
+  sell_stock: string;
+  sell_reason: string;
+}

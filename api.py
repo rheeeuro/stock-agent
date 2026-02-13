@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import mysql.connector
 from datetime import datetime
 from typing import List, Optional
+from datetime import date
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -44,7 +45,16 @@ class VideoResponse(BaseModel):
     channel_name: str
     video_title: str
     analysis_content: str
+    sentiment_score: Optional[int] = 50
     created_at: datetime
+
+class DailySummary(BaseModel):
+    id: int
+    report_date: str
+    buy_stock: Optional[str] = None
+    buy_reason: Optional[str] = None
+    sell_stock: Optional[str] = None
+    sell_reason: Optional[str] = None
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
@@ -63,14 +73,25 @@ def get_videos(limit: int = 20):
     
     try:
         query = """
-            SELECT id, video_id, channel_name, video_title, analysis_content, created_at 
+            SELECT id, video_id, channel_name, video_title, analysis_content, sentiment_score, created_at 
             FROM video_analysis 
             ORDER BY created_at DESC 
             LIMIT %s
         """
         cursor.execute(query, (limit,))
-        results = cursor.fetchall()
-        return results
+        result = cursor.fetchall()
+                
+        # created_at을 문자열로 변환 (JSON 직렬화 위해)
+        for row in result:
+            if row['created_at']:
+                row['created_at'] = str(row['created_at'])
+            # 혹시 NULL이면 50점으로 채움
+            if row['sentiment_score'] is None:
+                row['sentiment_score'] = 50
+                
+        cursor.close()
+        conn.close()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -88,3 +109,32 @@ def get_channels():
     finally:
         cursor.close()
         conn.close()
+
+@app.get("/api/daily-summary", response_model=Optional[DailySummary])
+def get_daily_summary():
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # 가장 최신 리포트 1개만 조회
+        query = """
+            SELECT * FROM daily_summary 
+            ORDER BY report_date DESC, id DESC 
+            LIMIT 1
+        """
+        cursor.execute(query)
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if result:
+            # 날짜 객체를 문자열로 변환
+            if isinstance(result['report_date'], date):
+                result['report_date'] = result['report_date'].isoformat()
+            return result
+        return None
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

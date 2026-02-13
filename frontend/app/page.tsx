@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { VideoAnalysis } from "@/types";
+import { DailySummary, VideoAnalysis } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { SentimentChart } from "@/components/SentimentChart";
+import { DailySummaryCard } from "@/components/DailySummaryCard";
 
 
 // 데이터 가져오는 함수 (Server Side)
@@ -21,8 +22,24 @@ async function getAnalyses(): Promise<VideoAnalysis[]> {
   }
 }
 
+async function getDailySummary(): Promise<DailySummary | null> {
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/daily-summary", {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
 export default async function Home() {
-  const data = await getAnalyses();
+ const [data, summary] = await Promise.all([
+    getAnalyses(),
+    getDailySummary()
+  ]);
 
   return (
     <main className="min-h-screen bg-slate-50 p-8 dark:bg-slate-950">
@@ -39,6 +56,9 @@ export default async function Home() {
             Total: {data.length}
           </Badge>
         </div>
+
+        {/* 오늘의 요약 카드 */}
+        <DailySummaryCard summary={summary} />
 
         {/* 차트 영역 (데이터가 있을 때만) */}
         {data.length > 0 && (

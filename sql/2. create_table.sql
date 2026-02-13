@@ -16,3 +16,13 @@ CREATE TABLE IF NOT EXISTS video_analysis (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_video_id (video_id)
 );
+
+CREATE TABLE IF NOT EXISTS daily_summary (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_date DATE NOT NULL,
+    buy_stock VARCHAR(100),
+    buy_reason TEXT,
+    sell_stock VARCHAR(100),
+    sell_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

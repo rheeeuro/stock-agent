@@ -18,3 +18,4 @@ wheels/
 # data
 mariadb_data/
 ollama_data/
+ecosystem.config.js
