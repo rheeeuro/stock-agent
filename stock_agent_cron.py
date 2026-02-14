@@ -87,12 +87,12 @@ class StockYoutubeAgent:
 
     def get_active_channels(self):
         """DB에서 활성화된 채널 목록 가져오기"""
-        query = "SELECT channel_name, channel_id FROM channels WHERE is_active = TRUE"
+        query = "SELECT identifier as channel_id, name as channel_name FROM sources WHERE platform = 'youtube' AND is_active = TRUE"
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
     def is_video_processed(self, video_id):
-        query = "SELECT count(*) as cnt FROM video_analysis WHERE video_id = %s"
+        query = "SELECT count(*) as cnt FROM content_analysis WHERE external_id = %s"
         self.cursor.execute(query, (video_id,))
         result = self.cursor.fetchone()
         return result['cnt'] > 0
@@ -122,10 +122,11 @@ class StockYoutubeAgent:
             content = self.remove_markdown_code_blocks(content)
             
             query = """
-                INSERT INTO video_analysis (video_id, channel_name, video_title, analysis_content, sentiment_score)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, platform, source_url)
+                VALUES (%s, %s, %s, %s, %s, 'youtube', %s)
             """
-            self.cursor.execute(query, (video_id, channel, title, content, score))
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            self.cursor.execute(query, (video_id, channel, title, content, score, video_url))
             self.conn.commit()
             print(f"✅ DB 저장 완료: {title} (점수: {score}점)")
         except mysql.connector.Error as err:
@@ -184,7 +185,7 @@ class StockYoutubeAgent:
                 status = "🔥 *강력 매수* (탐욕)"
             elif score >= 60:
                 status = "📈 *긍정적* (매수)"
-            elif score <= 20:
+            elif score <= 20:   
                 status = "🥶 *공포* (현금화)"
             elif score <= 40:
                 status = "📉 *부정적* (보수적)"

@@ -39,14 +39,16 @@ DB_CONFIG = {
 }
 
 # 3. 데이터 모델 정의 (TypeScript Interface와 같은 역할)
-class VideoResponse(BaseModel):
+class ContentAnalysis(BaseModel):
     id: int
-    video_id: str
-    channel_name: str
-    video_title: str
+    external_id: str 
+    source_name: str   
+    title: str         
     analysis_content: str
     sentiment_score: Optional[int] = 50
-    created_at: datetime
+    platform: str      
+    source_url: Optional[str] = None 
+    created_at: str
 
 class DailySummary(BaseModel):
     id: int
@@ -65,18 +67,20 @@ def get_db_connection():
 def read_root():
     return {"status": "ok", "service": "Stock Agent API"}
 
-@app.get("/api/videos", response_model=List[VideoResponse])
-def get_videos(limit: int = 20):
-    """최신 분석 영상 목록 조회"""
+@app.get("/api/contents", response_model=List[ContentAnalysis])
+def get_contents(limit: int = 20):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
     try:
         query = """
-            SELECT id, video_id, channel_name, video_title, analysis_content, sentiment_score, created_at 
-            FROM video_analysis 
+            SELECT 
+                id, external_id, source_name, title, 
+                analysis_content, sentiment_score, 
+                platform, source_url, created_at 
+            FROM content_analysis 
             ORDER BY created_at DESC 
-            LIMIT %s
+        LIMIT %s
         """
         cursor.execute(query, (limit,))
         result = cursor.fetchall()
@@ -104,7 +108,7 @@ def get_channels():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM channels")
+        cursor.execute("SELECT * FROM sources WHERE platform = 'youtube'")
         return cursor.fetchall()
     finally:
         cursor.close()

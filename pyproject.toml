@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "python-dotenv>=1.0.0",
     "requests>=2.32.5",
+    "telethon>=1.42.0",
     "uvicorn>=0.40.0",
     "youtube-transcript-api>=1.2.4",
 ]

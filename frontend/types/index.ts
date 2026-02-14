@@ -1,10 +1,12 @@
-export interface VideoAnalysis {
+export interface ContentAnalysis {
   id: number;
-  video_id: string;
-  channel_name: string;
-  video_title: string;
+  external_id: string;   
+  source_name: string;  
+  title: string;          
   analysis_content: string;
   sentiment_score?: number;
+  platform: 'youtube' | 'telegram' | 'news'; 
+  source_url?: string;    
   created_at: string;
 }
 

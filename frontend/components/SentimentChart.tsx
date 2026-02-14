@@ -1,6 +1,6 @@
 "use client";
 
-import { VideoAnalysis } from "@/types";
+import { ContentAnalysis } from "@/types";
 import {
   LineChart,
   Line,
@@ -14,15 +14,15 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
-  data: VideoAnalysis[];
+  data: ContentAnalysis[];
 }
 
 export function SentimentChart({ data }: Props) {
   // 1. 차트용 데이터로 가공 (최신순 -> 과거순 정렬 뒤집기 등)
   // 원본 데이터는 최신순(DESC)일 테니, 차트는 왼쪽(과거) -> 오른쪽(현재)로 가야 하므로 reverse()
   const chartData = [...data].reverse().map((item) => ({
-    name: item.channel_name,
-    title: item.video_title,
+    name: item.source_name,
+    title: item.title,
     // 날짜 포맷 (MM/DD HH:mm)
     date: new Date(item.created_at).toLocaleDateString("ko-KR", {
       month: "numeric",

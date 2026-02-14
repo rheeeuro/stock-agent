@@ -62,8 +62,8 @@ def generate_daily_report():
         # 1. 오늘(최근 24시간) 수집된 데이터 조회
         print("🔍 오늘의 데이터 조회 중...")
         query = """
-            SELECT channel_name, video_title, analysis_content, sentiment_score 
-            FROM video_analysis 
+            SELECT source_name as channel_name, title as video_title, analysis_content, sentiment_score 
+            FROM content_analysis 
             WHERE created_at >= NOW() - INTERVAL 24 HOUR
         """
         cursor.execute(query)

@@ -1,20 +1,15 @@
-import { Badge } from "@/components/ui/badge";
-import { DailySummary, VideoAnalysis } from "@/types";
-import { VideoCard } from "@/components/VideoCard";
+import { ContentAnalysis, DailySummary } from "@/types";
+import { ContentCard } from "@/components/ContentCard";
 import { SentimentChart } from "@/components/SentimentChart";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
+import { Badge } from "@/components/ui/badge";
 
-
-// 데이터 가져오는 함수 (Server Side)
-async function getAnalyses(): Promise<VideoAnalysis[]> {
+async function getContents(): Promise<ContentAnalysis[]> {
   try {
-    // 주의: Next.js 서버(Docker 외부) -> API 서버(Localhost) 호출 시
-    // 브라우저가 아니라 '서버'가 호출하므로 http://127.0.0.1:8000 사용
-    const res = await fetch("http://127.0.0.1:8000/api/videos?limit=20", {
-      cache: "no-store", // 실시간 데이터이므로 캐싱 안 함
+    const res = await fetch("http://127.0.0.1:8000/api/contents", { 
+      cache: "no-store",
     });
-    
-    if (!res.ok) throw new Error("API 호출 실패");
+    if (!res.ok) return [];
     return res.json();
   } catch (e) {
     console.error(e);
@@ -36,8 +31,8 @@ async function getDailySummary(): Promise<DailySummary | null> {
 }
 
 export default async function Home() {
- const [data, summary] = await Promise.all([
-    getAnalyses(),
+  const [data, summary] = await Promise.all([
+    getContents(), // 이름 변경
     getDailySummary()
   ]);
 
@@ -51,24 +46,23 @@ export default async function Home() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               📈 주식 AI 에이전트
             </h1>
+            <p className="text-slate-500 mt-1">
+              YouTube 및 Telegram 데이터를 실시간 분석합니다.
+            </p>
           </div>
           <Badge variant="outline" className="px-3 py-1">
             Total: {data.length}
           </Badge>
         </div>
 
-        {/* 오늘의 요약 카드 */}
+        {/* 요약 카드 & 차트 (그대로 유지) */}
         <DailySummaryCard summary={summary} />
+        {data.length > 0 && <SentimentChart data={data} />}
 
-        {/* 차트 영역 (데이터가 있을 때만) */}
-        {data.length > 0 && (
-          <SentimentChart data={data} />
-        )}
-
-        {/* 비디오 카드 그리드 */}
+        {/* ✅ 콘텐츠 카드 그리드 (ContentCard 사용) */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((item) => (
-            <VideoCard key={item.id} item={item} />
+            <ContentCard key={item.id} item={item} />
           ))}
         </div>
         
