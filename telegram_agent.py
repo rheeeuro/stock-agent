@@ -38,12 +38,12 @@ def get_target_channels():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
-        # 활성화된 채널만 조회
-        cursor.execute("SELECT channel_identifier FROM telegram_channels WHERE is_active = 1")
+        # 활성화된 채널만 조회 (sources 테이블 사용)
+        cursor.execute("SELECT identifier FROM sources WHERE platform = 'telegram' AND is_active = TRUE")
         rows = cursor.fetchall()
         
         for row in rows:
-            ident = row['channel_identifier']
+            ident = row['identifier']
             # 숫자로 된 ID(예: -100123...)는 정수형(int)으로 변환해야 텔레톤이 인식함
             if ident.startswith('-') or ident.isdigit():
                 channels.append(int(ident))
@@ -62,9 +62,9 @@ def save_to_db(channel, content, analysis, score, url):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         query = """
-            INSERT INTO video_analysis 
-            (video_id, channel_name, video_title, analysis_content, sentiment_score, source_type, source_url)
-            VALUES (%s, %s, %s, %s, %s, 'telegram', %s)
+            INSERT INTO content_analysis 
+            (external_id, source_name, title, analysis_content, sentiment_score, source_url, platform)
+            VALUES (%s, %s, %s, %s, %s, %s, 'telegram')
         """
         cursor.execute(query, (url, channel, "텔레그램 속보", analysis, score, url))
         conn.commit()
