@@ -142,3 +142,31 @@ def get_daily_summary():
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/daily-summary/{report_date}", response_model=Optional[DailySummary])
+def get_daily_summary_by_date(report_date: str):
+    """특정 날짜(YYYY-MM-DD)의 일일 요약 리포트 조회"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        query = """
+            SELECT * FROM daily_summary 
+            WHERE report_date = %s 
+            LIMIT 1
+        """
+        cursor.execute(query, (report_date,))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        if result:
+            if isinstance(result['report_date'], date):
+                result['report_date'] = result['report_date'].isoformat()
+            return result
+        return None
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

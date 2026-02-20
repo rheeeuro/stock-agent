@@ -62,7 +62,7 @@ def generate_daily_report():
         # 1. 오늘(최근 24시간) 수집된 데이터 조회
         print("🔍 오늘의 데이터 조회 중...")
         query = """
-            SELECT source_name as channel_name, title as video_title, analysis_content, sentiment_score 
+            SELECT source_name, title, analysis_content, sentiment_score 
             FROM content_analysis 
             WHERE created_at >= NOW() - INTERVAL 24 HOUR
         """
@@ -78,8 +78,8 @@ def generate_daily_report():
         for idx, row in enumerate(rows):
             reports_text += f"""
             [분석 {idx+1}]
-            - 채널: {row['channel_name']} (점수: {row['sentiment_score']}점)
-            - 제목: {row['video_title']}
+            - 출처: {row['source_name']} (점수: {row['sentiment_score']}점)
+            - 제목: {row['title']}
             - 내용 요약: {row['analysis_content'][:300]}...
             --------------------------------
             """
@@ -88,10 +88,14 @@ def generate_daily_report():
         prompt = f"""
         너는 냉철한 '헤지펀드 매니저'야. 아래 수집된 주식 분석 리포트들을 종합해서 오늘의 투자 전략을 짜줘.
 
+        [절대 규칙 - 반드시 지킬 것]
+        1. 반드시 '한국어(Korean)'로만 작성할 것. (중국어/영어 절대 금지)
+        2. 부연 설명, 인사말, 마크다운 기호를 절대 쓰지 말고 오직 JSON 포맷만 출력할 것.
+
         [지시사항]
-        1. **Top Pick (매수)**: 상승 여력이 가장 높거나 호재가 확실한 종목 1개 선정.
-        2. **Short Pick (매도)**: 리스크가 크거나, 과열되었거나, 악재가 있는 종목 1개 선정. (없으면 '관망'이라고 적어)
-        3. 선정 이유를 한 줄로 명확하게 요약해.
+        1. Top Pick (매수): 상승 여력이 가장 높거나 호재가 확실한 종목 1개.
+        2. Short Pick (매도): 리스크가 크거나, 과열되었거나, 악재가 있는 종목 1개. (없으면 '관망'이라고 적어)
+        3. 선정 이유를 1줄로 짧고 명확하게 요약해.
 
         [필수 출력 형식 - JSON Only]:
         {{
@@ -108,9 +112,12 @@ def generate_daily_report():
         print(f"🤖 AI 분석 시작 (데이터 {len(rows)}건)...")
         client = Client(host='http://127.0.0.1:11434')
         
-        response = client.chat(model='deepseek-r1:8b', messages=[
-            {'role': 'user', 'content': prompt}
-        ])
+        # AI 호출 시 창의성(temperature)을 낮춰서 헛소리 방지
+        response = client.chat(
+            model='deepseek-r1:8b', 
+            messages=[{'role': 'user', 'content': prompt}],
+            options={'temperature': 0.1} # 0에 가까울수록 기계적으로 답변함
+        )
         
         # 4. JSON 파싱 (DeepSeek <think> 태그 제거 로직 포함)
         content = response['message']['content']

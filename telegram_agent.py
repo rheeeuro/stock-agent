@@ -141,7 +141,15 @@ async def handler(event):
     channel_name = chat.title if getattr(chat, 'title', None) else "Unknown"
     
     text = event.message.message
-    msg_link = f"https://t.me/{chat.username}/{event.message.id}" if getattr(chat, 'username', None) else ""
+    username = getattr(chat, 'username', None)
+    if username:
+        msg_link = f"https://t.me/{username}/{event.message.id}"
+    else:
+        # 비공개 채널/그룹 처리 (ID 활용)
+        cid = str(chat.id)
+        if cid.startswith('-100'):
+            cid = cid[4:]
+        msg_link = f"https://t.me/c/{cid}/{event.message.id}"
 
     print(f"📩 [{channel_name}] 새 메시지 도착")
     
