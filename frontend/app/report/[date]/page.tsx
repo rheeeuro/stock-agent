@@ -54,7 +54,8 @@ export default async function ReportPage({ params }: { params: { date: string } 
 
     return (
         <main className="min-h-screen bg-slate-50 p-8 dark:bg-slate-950">
-            <div className="mx-auto max-w-4xl space-y-6">
+            {/* 🚀 max-w-4xl 을 max-w-6xl 로 변경! */}
+            <div className="mx-auto max-w-6xl space-y-6">
                 <Link href="/" className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
           <ArrowLeft className="w-4 h-4 mr-1" /> 메인으로 돌아가기
         </Link>

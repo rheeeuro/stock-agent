@@ -14,5 +14,6 @@ dependencies = [
     "requests>=2.32.5",
     "telethon>=1.42.0",
     "uvicorn>=0.40.0",
+    "yfinance>=1.2.0",
     "youtube-transcript-api>=1.2.4",
 ]

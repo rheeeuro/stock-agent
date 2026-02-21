@@ -14,7 +14,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "주식 AI 에이전트",
-  description: "주식 AI 에이전트",
+  description: "AI가 분석해주는 매일의 주식 시장 요약",
+  verification: {
+    google: "7Mm6OvLkEKXRXU0eZZune2CuZoZwRdKikruNXDMMH6s",
+    other: {
+      "naver-site-verification": "fd7c7a2a4a893dab722c75eab1ab9255a97ccf56",
+    },
+  },
 };
 
 export default function RootLayout({

@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 from datetime import date
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -166,6 +167,36 @@ def get_daily_summary_by_date(report_date: str):
                 result['report_date'] = result['report_date'].isoformat()
             return result
         return None
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/daily-summary-list", response_model=List[DailySummary])
+def get_daily_summary_list(limit: int = 7):
+    """최근 N일치의 일일 요약 리포트 목록 조회"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # 최근 날짜순으로 limit 개수만큼 가져옵니다
+        query = """
+            SELECT * FROM daily_summary 
+            ORDER BY created_at DESC 
+            LIMIT %s
+        """
+        cursor.execute(query, (limit,))
+        results = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # 날짜 포맷팅 (YYYY-MM-DD)
+        for row in results:
+            if isinstance(row['report_date'], date) or hasattr(row['report_date'], 'isoformat'):
+                row['report_date'] = str(row['report_date']).split(' ')[0]
+                
+        return results
         
     except Exception as e:
         print(f"Error: {e}")
