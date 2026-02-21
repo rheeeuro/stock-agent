@@ -14,7 +14,10 @@ export interface DailySummary {
   id: number;
   report_date: string;
   buy_stock: string;
+  buy_ticker?: string;
   buy_reason: string;
   sell_stock: string;
+  sell_ticker?: string;
   sell_reason: string;
+  created_at?: string;
 }

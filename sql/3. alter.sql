@@ -36,3 +36,6 @@ SELECT 'telegram', channel_identifier, display_name FROM telegram_channels;
 -- 4. (선택) 구형 테이블 삭제 (데이터 이관 확인 후 실행!)
 -- DROP TABLE channels;
 -- DROP TABLE telegram_channels;
+
+ALTER TABLE daily_summary ADD COLUMN buy_ticker VARCHAR(20) AFTER buy_stock;
+ALTER TABLE daily_summary ADD COLUMN sell_ticker VARCHAR(20) AFTER sell_stock;

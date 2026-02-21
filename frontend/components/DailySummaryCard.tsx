@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DailySummary } from "@/types";
 import { TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { StockPriceBadge } from "./StockPriceBadge";
 
 interface Props {
   summary: DailySummary | null;
@@ -31,8 +32,11 @@ export function DailySummaryCard({ summary }: Props) {
               <TrendingUp className="w-6 h-6" />
               <span>강력 매수 (Buy)</span>
             </div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-2">
-              {summary.buy_stock || "종목 없음"}
+            <div className="flex items-center mb-2">
+              <span className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                {summary.buy_stock || "종목 없음"}
+              </span>
+              {summary.buy_ticker && <StockPriceBadge ticker={summary.buy_ticker} />}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               {summary.buy_reason}
@@ -45,8 +49,11 @@ export function DailySummaryCard({ summary }: Props) {
               <TrendingDown className="w-6 h-6" />
               <span>매도/관망 (Sell)</span>
             </div>
-            <div className="text-2xl font-black text-slate-900 dark:text-slate-100 mb-2">
-              {summary.sell_stock || "종목 없음"}
+            <div className="flex items-center mb-2">
+              <span className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                {summary.sell_stock || "종목 없음"}
+              </span>
+              {summary.sell_ticker && <StockPriceBadge ticker={summary.sell_ticker} />}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               {summary.sell_reason}

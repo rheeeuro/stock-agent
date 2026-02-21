@@ -8,6 +8,7 @@ from typing import List, Optional
 from datetime import date
 from dotenv import load_dotenv
 from typing import List
+import yfinance as yf
 
 load_dotenv()
 
@@ -54,10 +55,12 @@ class ContentAnalysis(BaseModel):
 class DailySummary(BaseModel):
     id: int
     report_date: str
-    buy_stock: Optional[str] = None
-    buy_reason: Optional[str] = None
-    sell_stock: Optional[str] = None
-    sell_reason: Optional[str] = None
+    buy_stock: str
+    buy_ticker: Optional[str] = None
+    buy_reason: str
+    sell_stock: str
+    sell_ticker: Optional[str] = None
+    sell_reason: str
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
@@ -200,4 +203,37 @@ def get_daily_summary_list(limit: int = 7):
         
     except Exception as e:
         print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/stock-price/{ticker}")
+def get_stock_price(ticker: str):
+    """야후 파이낸스를 통해 실시간 주가 및 등락률 조회"""
+    try:
+        # yfinance를 통해 주식 정보 가져오기
+        stock = yf.Ticker(ticker)
+        
+        # 최근 2일치 데이터를 가져와서 전일 대비 등락률 계산
+        hist = stock.history(period="2d")
+        
+        if hist.empty or len(hist) < 1:
+            return {"error": "데이터를 찾을 수 없습니다."}
+        
+        current_price = hist['Close'].iloc[-1]
+        
+        if len(hist) >= 2:
+            prev_close = hist['Close'].iloc[-2]
+            change = current_price - prev_close
+            change_percent = (change / prev_close) * 100
+        else:
+            change = 0.0
+            change_percent = 0.0
+
+        return {
+            "ticker": ticker,
+            "price": round(current_price, 2),
+            "change": round(change, 2),
+            "change_percent": round(change_percent, 2)
+        }
+    except Exception as e:
+        print(f"yfinance 조회 에러 ({ticker}): {e}")
         raise HTTPException(status_code=500, detail=str(e))

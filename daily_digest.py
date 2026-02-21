@@ -101,8 +101,10 @@ def generate_daily_report():
         ```json
         {{
             "buy_stock": "가장 추천하는 매수 종목명 1개",
+            "buy_ticker": "매수 종목의 티커 심볼 (예: TSLA, NVDA, 005930.KS 등. 모르면 빈칸)",
             "buy_reason": "매수 추천 이유 1줄 요약",
-            "sell_stock": "매도 또는 관망 종목명 1개 (없으면 '관망')",
+            "sell_stock": "매도 또는 관망 종목명 1개",
+            "sell_ticker": "매도 종목의 티커 심볼 (모르면 빈칸)",
             "sell_reason": "매도/관망 이유 1줄 요약"
         }}
         ```
@@ -147,12 +149,16 @@ def generate_daily_report():
         # 5. DB 저장
         insert_query = """
             INSERT INTO daily_summary 
-            (report_date, buy_stock, buy_reason, sell_stock, sell_reason)
-            VALUES (CURDATE(), %s, %s, %s, %s)
+            (report_date, buy_stock, buy_ticker, buy_reason, sell_stock, sell_ticker, sell_reason)
+            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(insert_query, (
-            result['buy_stock'], result['buy_reason'], 
-            result['sell_stock'], result['sell_reason']
+            result.get('buy_stock'), 
+            result.get('buy_ticker', ''),
+            result.get('buy_reason'), 
+            result.get('sell_stock'), 
+            result.get('sell_ticker', ''),
+            result.get('sell_reason')
         ))
         conn.commit()
         
