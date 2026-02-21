@@ -41,24 +41,26 @@ AI_PROMPT_TEMPLATE = """
         2. **관련 있는 내용**이라면 다음 두 가지를 분석해서 반드시 **JSON 포맷**으로만 출력해.
             - sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
             - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
+            - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
         
-            [반드시 아래 Markdown 형식을 지켜서 출력해]:
+            [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
             
-            ## 1. 3줄 핵심 요약
-            - (요약 1)
-            - (요약 2)
-            - (요약 3)
-            
-            ## 2. 주요 언급 종목
-            - **종목명**: (호재/악재 판단)
-            
-            ## 3. 대응 전략
-            > (한 줄 조언)
+                ## 1. 3줄 핵심 요약
+                - (요약 1)
+                - (요약 2)  
+                - (요약 3)
+                
+                ## 2. 주요 언급 종목
+                - **종목명**: (호재/악재 판단)
+                
+                ## 3. 대응 전략
+                > (한 줄 조언)
         
         [필수 출력 형식 - JSON Only]:
         {{
             "sentiment_score": 75,  // 아닐 경우 -1
             "content": "분석 내용..." // 아닐 경우 ""
+            "related_tickers": ["추출된", "티커", "목록"] // 아닐 경우 []
         }}
 
         [자막 내용]: {content}
@@ -116,17 +118,17 @@ class StockYoutubeAgent:
         # 최종 공백 정리
         return content.strip()
 
-    def save_analysis(self, video_id, channel, title, content, score):
+    def save_analysis(self, video_id, channel, title, content, score, related_tickers):
         try:
             # 앞뒤의 markdown 코드 블록 마커 제거
             content = self.remove_markdown_code_blocks(content)
             
             query = """
-                INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, platform, source_url)
-                VALUES (%s, %s, %s, %s, %s, 'youtube', %s)
+                INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, related_tickers, platform, source_url)
+                VALUES (%s, %s, %s, %s, %s, %s, 'youtube', %s)
             """
             video_url = f"https://www.youtube.com/watch?v={video_id}"
-            self.cursor.execute(query, (video_id, channel, title, content, score, video_url))
+            self.cursor.execute(query, (video_id, channel, title, content, score, related_tickers, video_url))
             self.conn.commit()
             print(f"✅ DB 저장 완료: {title} (점수: {score}점)")
         except mysql.connector.Error as err:
@@ -167,17 +169,17 @@ class StockYoutubeAgent:
             # 필터링 로직 추가
             if data['sentiment_score'] == -1:
                 print(f"🚫 비주식 영상으로 판별됨: {title}")
-                return None, None  # 저장하지 않고 종료
+                return None, None, None  # 저장하지 않고 종료
 
             print(f"✅ AI 분석 완료: {len(data['content'])}자, 점수: {data['sentiment_score']}점")
-            return data['content'], data['sentiment_score']
+            return data['content'], data['sentiment_score'], data['related_tickers']
 
         except Exception as e:
             print(f"❌ AI 분석/파싱 에러: {e}")
             # 에러 나면 기본값 반환 (내용은 원본, 점수는 50)
             return None, 50
     
-    def send_telegram(self, channel, title, analysis, score=50):
+    def send_telegram(self, channel, title, analysis, score=50, related_tickers=None):
         """텔레그램 메시지 발송 함수"""
         try:
             # 1. 상태 이모지 결정
@@ -203,6 +205,7 @@ class StockYoutubeAgent:
                 f"🚨 *[{channel}] 분석 완료!*\n"
                 f"📊 관점: {score}점 - {status}\n\n"
                 f"📺 {title}\n"
+                f"관련 종목 코드: {related_tickers}\n"
                 f"──────────────────\n"
                 f"{formatted_analysis}\n\n"
                 f"👉 [대시보드 바로가기](https://stock.rheeeuro.com)" # 링크 거는 문법
@@ -247,13 +250,13 @@ class StockYoutubeAgent:
                 script_text = self.get_transcript(video_id)
                 
                 if script_text:
-                    analysis, score = self.analyze_with_ai(script_text, video_title)
+                    analysis, score, related_tickers = self.analyze_with_ai(script_text, video_title)
                     if analysis:
                         # 1. DB 저장
-                        self.save_analysis(video_id, name, video_title, analysis, score)
+                        self.save_analysis(video_id, name, video_title, analysis, score, related_tickers)
                         
                         # 2. 텔레그램 전송 (✅ score 인자 전달)
-                        self.send_telegram(name, video_title, analysis, score)
+                        self.send_telegram(name, video_title, analysis, score, related_tickers)
                         
                         # 3. 연속 호출 방지 딜레이
                         time.sleep(2)

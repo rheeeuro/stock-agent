@@ -58,16 +58,16 @@ def get_target_channels():
         print(f"❌ 채널 목록 로드 실패: {e}")
         return []
 
-def save_to_db(channel, title, content, analysis, score, url):
+def save_to_db(channel, title, content, analysis, score, url, related_tickers):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         query = """
             INSERT INTO content_analysis 
-            (external_id, source_name, title, analysis_content, sentiment_score, source_url, platform)
-            VALUES (%s, %s, %s, %s, %s, %s, 'telegram')
+            (external_id, source_name, title, analysis_content, sentiment_score, source_url, related_tickers, platform)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'telegram')
         """
-        cursor.execute(query, (url, channel, title, analysis, score, url))
+        cursor.execute(query, (url, channel, title, analysis, score, url, related_tickers))
         conn.commit()
         conn.close()
         print(f"✅ DB 저장 완료: {channel}")
@@ -77,39 +77,41 @@ def save_to_db(channel, title, content, analysis, score, url):
 def analyze_text(text):
     if len(text) < 30: return None, None # 너무 짧으면 무시
 
-    prompt = f"""
+    prompt = """
         [중요 지시사항]
-        이 메시지가 **'주식, 경제, 투자, 기업 분석, 시장 전망'**과 관련된 내용인지 판단해.
+        먼저 이 메시지가 **'주식, 경제, 투자, 기업 분석, 시장 전망'**과 관련된 내용인지 판단해.
         
         1. 만약 **관련 없는 내용(일상, 먹방, 게임, 단순 유머 등)**이라면:
            반드시 JSON의 sentiment_score를 **-1**로 설정하고 content는 비워둬.
            
         2. **관련 있는 내용**이라면 다음 두 가지를 분석해서 반드시 **JSON 포맷**으로만 출력해.
             - sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
-            - title: 제목
             - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
+            - title: 제목
+            - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
         
-            [반드시 아래 Markdown 형식을 지켜서 출력해]:
+            [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
             
-            ## 1. 3줄 핵심 요약
-            - (요약 1)
-            - (요약 2)
-            - (요약 3)
-            
-            ## 2. 주요 언급 종목
-            - **종목명**: (호재/악재 판단)
-            
-            ## 3. 대응 전략
-            > (한 줄 조언)
+                ## 1. 3줄 핵심 요약
+                - (요약 1)
+                - (요약 2)  
+                - (요약 3)
+                
+                ## 2. 주요 언급 종목
+                - **종목명**: (호재/악재 판단)
+                
+                ## 3. 대응 전략
+                > (한 줄 조언)
         
         [필수 출력 형식 - JSON Only]:
         {{
             "sentiment_score": 75,  // 아닐 경우 -1
-            "title": "제목",
             "content": "분석 내용..." // 아닐 경우 ""
+            "title": "제목",
+            "related_tickers": ["추출된", "티커", "목록"] // 아닐 경우 []
         }}
 
-        [자막 내용]: {text}
+        [메시지 내용]: {content}
     """
     try:
         response = ai_client.chat(model='deepseek-r1:8b', messages=[{'role': 'user', 'content': prompt}])
@@ -117,10 +119,10 @@ def analyze_text(text):
         if '</think>' in content: content = content.split('</think>')[-1].strip()
         data = json.loads(content)
         
-        if data.get('sentiment_score') == -1: return None, None
-        return data['title'], data['content'], data['sentiment_score']
+        if data.get('sentiment_score') == -1: return None, None, None, None
+        return data['title'], data['content'], data['sentiment_score'], data['related_tickers']
     except:
-        return None, None, None
+        return None, None, None, None
 
 # --- 메인 로직 시작 ---
 
@@ -153,10 +155,10 @@ async def handler(event):
 
     print(f"📩 [{channel_name}] 새 메시지 도착")
     
-    title, analysis, score = analyze_text(text)
+    title, analysis, score, related_tickers = analyze_text(text)
     
     if analysis:
-        save_to_db(channel_name, title, text, analysis, score, msg_link)
+        save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers)
 
 print(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
 client.start()

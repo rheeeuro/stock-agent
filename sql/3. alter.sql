@@ -39,3 +39,5 @@ SELECT 'telegram', channel_identifier, display_name FROM telegram_channels;
 
 ALTER TABLE daily_summary ADD COLUMN buy_ticker VARCHAR(20) AFTER buy_stock;
 ALTER TABLE daily_summary ADD COLUMN sell_ticker VARCHAR(20) AFTER sell_stock;
+
+ALTER TABLE content_analysis ADD COLUMN related_tickers VARCHAR(255) DEFAULT NULL;
