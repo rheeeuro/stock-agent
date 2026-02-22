@@ -237,3 +237,65 @@ def get_stock_price(ticker: str):
     except Exception as e:
         print(f"yfinance 조회 에러 ({ticker}): {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/contents/{ticker}", response_model=List[ContentAnalysis])
+def get_contents_by_ticker(ticker: str, limit: int = 20):
+    """특정 티커(종목)와 관련된 콘텐츠만 쏙쏙 뽑아오기"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # related_tickers 컬럼에 검색하는 티커(예: NVDA)가 포함된 데이터만 찾습니다.
+        query = """
+            SELECT * FROM content_analysis 
+            WHERE related_tickers LIKE %s 
+            ORDER BY created_at DESC 
+            LIMIT %s
+        """
+        # LIKE 검색을 위해 앞뒤로 %를 붙여줍니다 (예: '%NVDA%')
+        search_term = f"%{ticker}%"
+        cursor.execute(query, (search_term, limit))
+        results = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # 시간 포맷팅
+        for row in results:
+            if isinstance(row['created_at'], datetime):
+                row['created_at'] = row['created_at'].isoformat()
+                
+        return results
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/stock-name/{ticker}")
+def get_stock_name(ticker: str):
+    """DB 기록을 뒤져서 티커의 한글 종목명을 찾아옵니다"""
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        # 매수/매도 기록에서 이 티커와 짝지어졌던 한글 이름을 하나만 가져옵니다.
+        query = """
+            SELECT buy_stock AS stock_name FROM daily_summary WHERE buy_ticker = %s
+            UNION
+            SELECT sell_stock AS stock_name FROM daily_summary WHERE sell_ticker = %s
+            LIMIT 1
+        """
+        cursor.execute(query, (ticker, ticker))
+        result = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        # 한글 이름을 찾았으면 반환, 못 찾았으면 그냥 영문 티커 반환
+        if result and result['stock_name']:
+            return {"name": result['stock_name']}
+        return {"name": ticker}
+        
+    except Exception as e:
+        print(f"이름 찾기 에러: {e}")
+        return {"name": ticker}

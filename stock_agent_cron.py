@@ -42,6 +42,7 @@ AI_PROMPT_TEMPLATE = """
             - sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
             - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
             - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
+                🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 티커만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
         
             [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
             
@@ -122,13 +123,14 @@ class StockYoutubeAgent:
         try:
             # 앞뒤의 markdown 코드 블록 마커 제거
             content = self.remove_markdown_code_blocks(content)
+            tickers_json_str = json.dumps(related_tickers)
             
             query = """
                 INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, related_tickers, platform, source_url)
                 VALUES (%s, %s, %s, %s, %s, %s, 'youtube', %s)
             """
             video_url = f"https://www.youtube.com/watch?v={video_id}"
-            self.cursor.execute(query, (video_id, channel, title, content, score, related_tickers, video_url))
+            self.cursor.execute(query, (video_id, channel, title, content, score, tickers_json_str, video_url))
             self.conn.commit()
             print(f"✅ DB 저장 완료: {title} (점수: {score}점)")
         except mysql.connector.Error as err:
