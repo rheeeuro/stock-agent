@@ -27,6 +27,7 @@ DB_CONFIG = {
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '')
 CHAT_ID = os.getenv('CHAT_ID', '')
+CHAT_ID2 = os.getenv('CHAT_ID2', '')
 
 # AI 분석 프롬프트 템플릿. {title}, {content} 플레이스홀더 사용. .env의 AI_PROMPT_TEMPLATE으로 덮어쓰기 가능
 AI_PROMPT_TEMPLATE = """
@@ -214,15 +215,17 @@ class StockYoutubeAgent:
             )
             
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-            data = {
-                "chat_id": CHAT_ID,
-                "text": message,
-                "parse_mode": "Markdown", # ✅ 핵심: "이거 마크다운이야!"라고 알려줌
-                "disable_web_page_preview": True # (선택) 링크 미리보기 끄기 (깔끔하게)
-            }
             
-            requests.post(url, data=data, timeout=10)
-            print(f"📨 텔레그램 전송 성공: {title} ({score}점)")
+            chat_ids = [cid for cid in [CHAT_ID, CHAT_ID2] if cid]
+            for chat_id in chat_ids:
+                data = {
+                    "chat_id": chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown", # ✅ 핵심: "이거 마크다운이야!"라고 알려줌
+                    "disable_web_page_preview": True # (선택) 링크 미리보기 끄기 (깔끔하게)
+                }
+                requests.post(url, data=data, timeout=10)
+            print(f"📨 텔레그램 전송 성공: {title} ({score}점) -> {len(chat_ids)}개 채팅방")
                 
         except Exception as e:
             print(f"❌ 텔레그램 에러: {e}")

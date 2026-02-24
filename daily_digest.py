@@ -15,6 +15,7 @@ load_dotenv()
 # ==========================================
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '')
 CHAT_ID = os.getenv('CHAT_ID', '')
+CHAT_ID2 = os.getenv('CHAT_ID2', '')
 
 # ==========================================
 # [설정 2] DB 연결 정보
@@ -43,14 +44,16 @@ def send_telegram_alert(date, buy, buy_r, sell, sell_r):
     
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        data = {
-            "chat_id": CHAT_ID, 
-            "text": message, 
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": True
-        }
-        requests.post(url, data=data, timeout=10)
-        print("📨 텔레그램 전송 완료")
+        chat_ids = [cid for cid in [CHAT_ID, CHAT_ID2] if cid]
+        for chat_id in chat_ids:
+            data = {
+                "chat_id": chat_id,
+                "text": message, 
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": True
+            }
+            requests.post(url, data=data, timeout=10)
+        print(f"📨 텔레그램 전송 완료 -> {len(chat_ids)}개 채팅방")
     except Exception as e:
         print(f"❌ 텔레그램 전송 실패: {e}")
 

@@ -299,3 +299,23 @@ def get_stock_name(ticker: str):
     except Exception as e:
         print(f"이름 찾기 에러: {e}")
         return {"name": ticker}
+
+@app.get("/api/stock-history/{ticker}")
+def get_stock_history(ticker: str):
+    """최근 7일 주가 데이터 가져오기 (차트 오버레이용)"""
+    try:
+        stock = yf.Ticker(ticker)
+        # 최근 7일치 데이터 조회
+        hist = stock.history(period="7d")
+        
+        result = []
+        if not hist.empty:
+            for date, row in hist.iterrows():
+                result.append({
+                    "date": date.strftime("%Y-%m-%d"), # YYYY-MM-DD 형식
+                    "price": round(row['Close'], 2)
+                })
+        return result
+    except Exception as e:
+        print(f"히스토리 조회 에러 ({ticker}): {e}")
+        return []

@@ -1,100 +1,183 @@
 "use client";
 
 import { ContentAnalysis } from "@/types";
+import { useMemo } from "react";
 import {
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
+  Legend
 } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface Props {
-  data: ContentAnalysis[];
+interface HistoryData {
+  date: string;
+  price: number;
 }
 
-export function SentimentChart({ data }: Props) {
-  // 1. 차트용 데이터로 가공 (최신순 -> 과거순 정렬 뒤집기 등)
-  // 원본 데이터는 최신순(DESC)일 테니, 차트는 왼쪽(과거) -> 오른쪽(현재)로 가야 하므로 reverse()
-  const chartData = [...data].reverse().map((item) => ({
-    name: item.source_name,
-    title: item.title,
-    // 날짜 포맷 (MM/DD HH:mm)
-    date: new Date(item.created_at).toLocaleDateString("ko-KR", {
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-    }),
-    score: item.sentiment_score || 50, // 점수 없으면 50(중립)
-  }));
+// 🎨 우리가 만든 예쁜 커스텀 툴팁 (메인/상세 공통 사용)
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload; 
+    
+    return (
+      <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50">
+        <p className="font-bold text-slate-800 dark:text-slate-200 mb-2">{label}</p>
+        
+        {payload.map((entry: any, index: number) => (
+          <p key={index} style={{ color: entry.color }} className="text-sm font-bold flex justify-between gap-4 mb-1">
+            <span>{entry.name}</span>
+            {/* 주가일 경우 $ 기호 추가, 점수일 경우 그냥 숫자 표시 */}
+            <span>{entry.name === "실제 주가" ? entry.value.toLocaleString() : entry.value}</span>
+          </p>
+        ))}
+        
+        {/* 뉴스 제목이 있으면 하단에 표시 */}
+        {data.title && (
+          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+            <p className="text-xs text-slate-500 dark:text-slate-400 break-keep w-48 font-medium">
+              {data.title}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
 
-  // 커스텀 툴팁 컴포넌트
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const d = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded shadow-lg text-sm">
-          <p className="font-bold mb-1">{d.title}</p>
-          <p className="text-slate-500 text-xs mb-2">
-            {d.name} · {d.date}
-          </p>
-          <p className={`font-bold ${
-            d.score >= 80 ? "text-red-500" : d.score <= 20 ? "text-blue-500" : "text-yellow-500"
-          }`}>
-            점수: {d.score}점
-          </p>
-        </div>
-      );
+export function SentimentChart({ 
+  data, 
+  history = [], 
+  ticker = "" 
+}: { 
+  data: ContentAnalysis[], 
+  history?: HistoryData[], 
+  ticker?: string 
+}) {
+  
+  const isDetailPage = history && history.length > 0;
+
+  const chartData = useMemo(() => {
+    // 📍 1. 메인 페이지 모드
+    if (!isDetailPage) {
+      const sortedData = [...data].reverse();
+      return sortedData.map((item) => {
+        const dateObj = new Date(item.created_at || "");
+        const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${dateObj.getHours()}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        return {
+          displayDate: dateStr,
+          score: item.sentiment_score ?? 50,
+          title: item.title, // 원본 제목 그대로 사용
+        };
+      });
     }
-    return null;
-  };
+
+    // 📍 2. 상세 페이지 모드 (날짜별 병합 + 제목 요약)
+    const dateMap = new Map<string, any>();
+
+    // 주가 뼈대 잡기
+    history.forEach((h) => {
+      dateMap.set(h.date, { dateKey: h.date, price: h.price });
+    });
+
+    // 감성 점수와 뉴스 제목 병합하기
+    data.forEach((item) => {
+      const d = new Date(item.created_at || "");
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${day}`;
+      
+      const currentScore = item.sentiment_score ?? 50; 
+      
+      if (!dateMap.has(dateKey)) {
+        // 🚀 처음 들어가는 뉴스면 제목(firstTitle)을 저장해 둡니다
+        dateMap.set(dateKey, { 
+          dateKey, 
+          score: currentScore, 
+          count: 1, 
+          firstTitle: item.title 
+        });
+      } else {
+        const existing = dateMap.get(dateKey);
+        if (existing.score === undefined) {
+          existing.score = currentScore;
+          existing.count = 1;
+          existing.firstTitle = item.title;
+        } else {
+          existing.score = Math.round((existing.score * existing.count + currentScore) / (existing.count + 1));
+          existing.count += 1; // 🚀 뉴스가 추가될 때마다 카운트 증가
+        }
+      }
+    });
+
+    // 정렬 후 화면에 뿌릴 포맷으로 정리
+    const sorted = Array.from(dateMap.values()).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+    return sorted.map(item => {
+      const parts = item.dateKey ? item.dateKey.split('-') : [];
+      const displayDate = parts.length === 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : item.displayDate;
+      
+      // 🚀 핵심: 그날 뉴스가 여러 개면 "첫번째 기사 제목... 외 N건" 형태로 요약!
+      let finalTitle = "";
+      if (item.firstTitle) {
+        finalTitle = item.firstTitle.length > 25 ? item.firstTitle.substring(0, 25) + "..." : item.firstTitle;
+        if (item.count > 1) {
+          finalTitle += ` (외 ${item.count - 1}건)`;
+        }
+      }
+
+      return { 
+        ...item, 
+        displayDate,
+        title: finalTitle // 조합된 제목을 title로 넘겨줍니다
+      };
+    });
+  }, [data, history, isDetailPage]);
+
+  if (chartData.length < 2) return null;
 
   return (
-    <Card className="col-span-1 lg:col-span-3"> {/* 전체 너비 사용 */}
-      <CardHeader>
-        <CardTitle>📊 AI 시장 감정 분석 (Fear & Greed)</CardTitle>
-        <CardDescription>
-          최근 분석된 영상들의 시장 긍정/부정 지수 흐름입니다. (0: 공포 ~ 100: 탐욕)
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pl-0">
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }} 
-                tickMargin={10} 
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                tick={{ fontSize: 12 }} 
-                width={40}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              
-              {/* 기준선: 50점 (중립) */}
-              <ReferenceLine y={50} stroke="#9ca3af" strokeDasharray="3 3" label="중립" />
-              
-              {/* 메인 데이터 라인 */}
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#6366f1" // Indigo 500
-                strokeWidth={3}
-                dot={{ r: 4, fill: "#6366f1" }}
-                activeDot={{ r: 6 }}
-                animationDuration={1500}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8">
+      <h3 className="text-lg font-bold mb-6 text-slate-800 dark:text-slate-100 flex items-center gap-2">
+        {isDetailPage ? `📈 ${ticker} 여론 vs 실제 주가 흐름` : "📈 전체 AI 여론 (감성 점수) 변화 추이"}
+      </h3>
+      
+      <div className="h-72 w-full text-xs">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <XAxis dataKey="displayDate" tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+            
+            <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: '#64748b' }} axisLine={false} tickLine={false} />
+            
+            {isDetailPage && (
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f59e0b' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
+            )}
+            
+            {/* 🚀 커스텀 툴팁 장착 완료! */}
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+            
+            {isDetailPage && <Legend wrapperStyle={{ paddingTop: '20px' }} />}
+            
+            <Area yAxisId="left" type="monotone" dataKey="score" name="AI 감성 점수" stroke="#6366f1" fillOpacity={1} fill="url(#colorScore)" connectNulls={true} />
+            
+            {isDetailPage && (
+              <Line yAxisId="right" type="monotone" dataKey="price" name="실제 주가" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls={true} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

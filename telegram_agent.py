@@ -30,6 +30,7 @@ DB_CONFIG = {
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 
+
 # AI 클라이언트
 ai_client = Client(host='http://127.0.0.1:11434')
 

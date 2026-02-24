@@ -27,13 +27,24 @@ async function getStockNameFromDB(ticker: string): Promise<string> {
   }
 }
 
+async function getStockHistory(ticker: string): Promise<any[]> {
+  try {
+    const res = await fetch(`http://127.0.0.1:8000/api/stock-history/${ticker}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return res.json();
+  } catch (e) {
+    return [];
+  }
+}
+
 export default async function StockDetailPage({ params }: { params: { ticker: string } }) {
   // URL에서 티커 이름(예: NVDA)을 빼옵니다 (대문자로 통일)
   const resolvedParams = await Promise.resolve(params);
   const decodedTicker = decodeURIComponent(resolvedParams.ticker).toUpperCase();
-  const [stockName, contents] = await Promise.all([
+  const [stockName, contents, history] = await Promise.all([
     getStockNameFromDB(decodedTicker),
-    getTickerContents(decodedTicker)
+    getTickerContents(decodedTicker),
+    getStockHistory(decodedTicker)
   ]);
 
   // DB에서 찾은 이름이 영문 티커와 다르면(즉, 한글 이름을 찾았으면) "엔비디아(NVDA)" 형태로 조합
@@ -60,7 +71,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
         {/* 데이터가 있을 경우 차트와 카드 표시 */}
         {contents.length > 0 ? (
           <>
-            <SentimentChart data={contents} />
+            <SentimentChart data={contents} history={history} ticker={decodedTicker} />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {contents.map((item) => (
                 <ContentCard key={item.id} item={item} />
