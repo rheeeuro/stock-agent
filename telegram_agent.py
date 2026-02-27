@@ -5,6 +5,16 @@ import mysql.connector
 import json
 import requests
 import os
+import logging
+import sys
+
+# 로깅 설정: 시간 포함
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
+)
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -53,10 +63,10 @@ def get_target_channels():
                 channels.append(ident) # username은 문자열 그대로
                 
         conn.close()
-        print(f"📋 감시 대상 채널 로드 완료: {len(channels)}개")
+        logging.info(f"📋 감시 대상 채널 로드 완료: {len(channels)}개")
         return channels
     except Exception as e:
-        print(f"❌ 채널 목록 로드 실패: {e}")
+        logging.error(f"❌ 채널 목록 로드 실패: {e}")
         return []
 
 def save_to_db(channel, title, content, analysis, score, url, related_tickers):
@@ -72,14 +82,14 @@ def save_to_db(channel, title, content, analysis, score, url, related_tickers):
         cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str))
         conn.commit()
         conn.close()
-        print(f"✅ DB 저장 완료: {channel}")
+        logging.info(f"✅ DB 저장 완료: {channel}")
     except Exception as e:
-        print(f"❌ DB 에러: {e}")
+        logging.error(f"❌ DB 에러: {e}")
 
 def analyze_text(text):
-    if len(text) < 30: return None, None # 너무 짧으면 무시
+    if len(text) < 30: return None, None, None, None # 너무 짧으면 무시
 
-    prompt = """
+    prompt = f"""
         [중요 지시사항]
         먼저 이 메시지가 **'주식, 경제, 투자, 기업 분석, 시장 전망'**과 관련된 내용인지 판단해.
         
@@ -114,7 +124,7 @@ def analyze_text(text):
             "related_tickers": ["추출된", "티커", "목록"] // 아닐 경우 []
         }}
 
-        [메시지 내용]: {content}
+        [메시지 내용]: {text}
     """
     try:
         response = ai_client.chat(model='deepseek-r1:8b', messages=[{'role': 'user', 'content': prompt}])
@@ -133,7 +143,7 @@ def analyze_text(text):
 target_chats = get_target_channels()
 
 if not target_chats:
-    print("⚠️ 감시할 채널이 없습니다. DB를 확인해주세요.")
+    logging.warning("⚠️ 감시할 채널이 없습니다. DB를 확인해주세요.")
     sys.exit()
 
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
@@ -156,13 +166,13 @@ async def handler(event):
             cid = cid[4:]
         msg_link = f"https://t.me/c/{cid}/{event.message.id}"
 
-    print(f"📩 [{channel_name}] 새 메시지 도착")
+    logging.info(f"📩 [{channel_name}] 새 메시지 도착")
     
     title, analysis, score, related_tickers = analyze_text(text)
     
     if analysis:
         save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers)
 
-print(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
+logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
 client.start()
 client.run_until_disconnected()

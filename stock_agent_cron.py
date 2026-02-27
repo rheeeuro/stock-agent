@@ -9,6 +9,15 @@ import time
 import requests
 import re
 import json
+import logging
+
+# 로깅 설정: 시간 포함
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
+)
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -77,7 +86,7 @@ class StockYoutubeAgent:
             self.conn = mysql.connector.connect(**DB_CONFIG)
             self.cursor = self.conn.cursor(dictionary=True) # 결과를 딕셔너리로 받기
         except Exception as e:
-            print(f"❌ DB 연결 실패: {e}")
+            logging.error(f"❌ DB 연결 실패: {e}")
             sys.exit(1)
 
     def __del__(self):
@@ -133,9 +142,9 @@ class StockYoutubeAgent:
             video_url = f"https://www.youtube.com/watch?v={video_id}"
             self.cursor.execute(query, (video_id, channel, title, content, score, tickers_json_str, video_url))
             self.conn.commit()
-            print(f"✅ DB 저장 완료: {title} (점수: {score}점)")
+            logging.info(f"✅ DB 저장 완료: {title} (점수: {score}점)")
         except mysql.connector.Error as err:
-            print(f"❌ DB 저장 에러: {err}")
+            logging.error(f"❌ DB 저장 에러: {err}")
 
     def get_transcript(self, video_id):
         try:
@@ -144,17 +153,17 @@ class StockYoutubeAgent:
             fetched = transcript.fetch()
             # fetch()는 FetchedTranscript 객체를 반환. snippets 속성 사용
             text = " ".join([snippet.text for snippet in fetched.snippets])
-            print(f"📝 자막 가져오기 성공: {len(text)}자")
+            logging.info(f"📝 자막 가져오기 성공: {len(text)}자")
             return text
         except Exception as e:
-            print(f"⚠️ 자막 가져오기 실패 ({video_id}): {e}")
+            logging.warning(f"⚠️ 자막 가져오기 실패 ({video_id}): {e}")
             return None
 
     def analyze_with_ai(self, text, title):
         prompt = AI_PROMPT_TEMPLATE.format(title=title, content=text[:3000])
         model_name = os.getenv('OLLAMA_MODEL', 'deepseek-r1:8b')  # 기본값: deepseek-r1:8b
         try:
-            print(f"🤖 AI 분석 시작 (모델: {model_name})...")
+            logging.info(f"🤖 AI 분석 시작 (모델: {model_name})...")
             response = ollama.chat(model=model_name, messages=[
                 {'role': 'user', 'content': prompt}
             ])
@@ -171,14 +180,14 @@ class StockYoutubeAgent:
 
             # 필터링 로직 추가
             if data['sentiment_score'] == -1:
-                print(f"🚫 비주식 영상으로 판별됨: {title}")
+                logging.info(f"🚫 비주식 영상으로 판별됨: {title}")
                 return None, None, None  # 저장하지 않고 종료
 
-            print(f"✅ AI 분석 완료: {len(data['content'])}자, 점수: {data['sentiment_score']}점")
+            logging.info(f"✅ AI 분석 완료: {len(data['content'])}자, 점수: {data['sentiment_score']}점")
             return data['content'], data['sentiment_score'], data['related_tickers']
 
         except Exception as e:
-            print(f"❌ AI 분석/파싱 에러: {e}")
+            logging.error(f"❌ AI 분석/파싱 에러: {e}")
             # 에러 나면 기본값 반환 (내용은 원본, 점수는 50)
             return None, 50
     
@@ -225,17 +234,17 @@ class StockYoutubeAgent:
                     "disable_web_page_preview": True # (선택) 링크 미리보기 끄기 (깔끔하게)
                 }
                 requests.post(url, data=data, timeout=10)
-            print(f"📨 텔레그램 전송 성공: {title} ({score}점) -> {len(chat_ids)}개 채팅방")
+            logging.info(f"📨 텔레그램 전송 성공: {title} ({score}점) -> {len(chat_ids)}개 채팅방")
                 
         except Exception as e:
-            print(f"❌ 텔레그램 에러: {e}")
+            logging.error(f"❌ 텔레그램 에러: {e}")
 
     def run_once(self):
-        print(f"[{datetime.now()}] 에이전트 실행 시작 (uv)")
+        logging.info("에이전트 실행 시작 (uv)")
         
         # 1. DB에서 채널 목록 조회
         target_channels = self.get_active_channels()
-        print(f"📡 모니터링 대상 채널: {len(target_channels)}개")
+        logging.info(f"📡 모니터링 대상 채널: {len(target_channels)}개")
 
         for channel in target_channels:
             name = channel['channel_name']
@@ -251,7 +260,7 @@ class StockYoutubeAgent:
             video_title = latest_video.title
 
             if not self.is_video_processed(video_id):
-                print(f"🆕 새 영상 발견 [{name}]: {video_title}")
+                logging.info(f"🆕 새 영상 발견 [{name}]: {video_title}")
                 script_text = self.get_transcript(video_id)
                 
                 if script_text:
@@ -266,13 +275,13 @@ class StockYoutubeAgent:
                         # 3. 연속 호출 방지 딜레이
                         time.sleep(2)
                     else:
-                        print(f"⚠️ AI 분석 결과가 없어 저장하지 않음")
+                        logging.warning(f"⚠️ AI 분석 결과가 없어 저장하지 않음")
                 else:
-                    print(f"⚠️ 자막이 없어 분석하지 않음")
+                    logging.warning(f"⚠️ 자막이 없어 분석하지 않음")
             else:
                 pass 
 
-        print(f"[{datetime.now()}] 에이전트 실행 종료")
+        logging.info("에이전트 실행 종료")
 
 if __name__ == "__main__":
     agent = StockYoutubeAgent()
