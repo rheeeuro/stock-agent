@@ -83,7 +83,7 @@ def save_to_db(channel, title, content, analysis, score, url, related_tickers):
         cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str))
         conn.commit()
         conn.close()
-        logging.info(f"✅ DB 저장 완료: {channel}")
+        logging.info(f"✅ DB 저장 완료: {channel} (점수: {score}, 티커: {related_tickers})")
     except Exception as e:
         logging.error(f"❌ DB 에러: {e}")
 
@@ -119,10 +119,10 @@ def analyze_text(text):
         
         [필수 출력 형식 - JSON Only]:
         {{
-            "sentiment_score": 75,  // 아닐 경우 -1
-            "content": "분석 내용..." // 아닐 경우 ""
+            "sentiment_score": 75,  
+            "content": "분석 내용...", 
             "title": "제목",
-            "related_tickers": ["추출된", "티커", "목록"] // 아닐 경우 []
+            "related_tickers": ["추출된", "티커", "목록"] 
         }}
 
         [메시지 내용]: {text}
@@ -135,7 +135,8 @@ def analyze_text(text):
         
         if data.get('sentiment_score') == -1: return None, None, None, None
         return data['title'], data['content'], data['sentiment_score'], data['related_tickers']
-    except:
+    except Exception as e:
+        logging.error(f"AI 분석 에러: {e}")
         return None, None, None, None
 
 # --- 메인 로직 시작 ---
@@ -153,15 +154,16 @@ client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 @client.on(events.NewMessage(chats=target_chats))
 async def handler(event):
     chat = await event.get_chat()
-    # 채널명 가져오기 (없으면 ID 사용)
     channel_name = chat.title if getattr(chat, 'title', None) else "Unknown"
     
     text = event.message.message
+    if not text: # 메시지가 비어있거나 이미지 등 텍스트가 없는 경우 스킵
+        return
+
     username = getattr(chat, 'username', None)
     if username:
         msg_link = f"https://t.me/{username}/{event.message.id}"
     else:
-        # 비공개 채널/그룹 처리 (ID 활용)
         cid = str(chat.id)
         if cid.startswith('-100'):
             cid = cid[4:]
@@ -172,6 +174,17 @@ async def handler(event):
     title, analysis, score, related_tickers = analyze_text(text)
     
     if analysis:
+        # 🚀 필터 1: 관련 티커가 없으면 스킵 (빈 리스트 등)
+        if not related_tickers or len(related_tickers) == 0:
+            logging.info(f"⏭️ [스킵] 구체적인 티커(Ticker)가 없어 저장하지 않습니다.")
+            return
+
+        # 🚀 필터 2: 점수가 40점 ~ 70점 사이(중립)면 스킵
+        if score is not None and 40 <= score <= 70:
+            logging.info(f"⏭️ [스킵] 점수가 {score}점(40~70 구간)이라 저장하지 않습니다.")
+            return
+            
+        # 두 가지 필터를 모두 무사히 통과한 알짜배기 데이터만 저장!
         save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers)
 
 logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
@@ -179,12 +192,10 @@ logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)..
 while True:
     try:
         client.start()
-        print("✅ 텔레그램 서버 연결 성공! 메시지 감시를 시작합니다.")
-        # 정상적일 때는 여기서 계속 대기하며 메시지를 받습니다.
+        logging.info("✅ 텔레그램 서버 연결 성공! 메시지 감시를 시작합니다.")
         client.run_until_disconnected() 
         
     except Exception as e:
-        # 에러가 나서 튕기더라도 프로그램이 종료되지 않고 여기로 빠집니다.
-        print(f"💥 텔레그램 연결 끊김 또는 에러 발생: {e}")
-        print("⏳ 10초 후 서버에 자동 재접속을 시도합니다...")
-        time.sleep(10) # 10초 쉬고 다시 while 루프 처음으로 돌아감!
+        logging.error(f"💥 텔레그램 연결 끊김 또는 에러 발생: {e}")
+        logging.info("⏳ 10초 후 서버에 자동 재접속을 시도합니다...")
+        time.sleep(10)
