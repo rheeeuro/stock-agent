@@ -77,7 +77,7 @@ export default async function Home(props: {
             </p>
           </div>
           <Badge variant="outline" className="px-3 py-1">
-            Total: {pagination?.total_items || 0}
+           Today: {pagination?.total_items || 0}
           </Badge>
         </div>
 
@@ -89,7 +89,7 @@ export default async function Home(props: {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800 dark:text-slate-100">
                 <Calendar className="w-5 h-5 text-indigo-500" />
-                과거 AI 투자 리포트
+                지난 AI 투자 리포트
               </h2>
             </div>
             

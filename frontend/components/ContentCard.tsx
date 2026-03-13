@@ -79,7 +79,7 @@ function CardBody({ item }: { item: ContentAnalysis }) {
 
       {/* 3. 푸터: 날짜 + 링크 */}
       <CardFooter className="p-4 pt-0 text-xs text-slate-400 flex justify-between items-center">
-        <span>{new Date(item.created_at).toLocaleDateString()}</span>
+        <span>{new Date(item.created_at).toLocaleString()}</span>
         
         {/* 모달 트리거이므로 직접 링크 대신 '상세보기' 표시 */}
         <div className="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
@@ -108,14 +108,20 @@ export function ContentCard({ item }: Props) {
 
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <div className="flex lg:flex-row sm:flex-col sm:items-center gap-1 sm:gap-2 mb-2 items-start">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2 items-start">
             <div className="flex items-center gap-2">
               {item.platform === 'youtube' ? (
                 <Badge variant="secondary" className="bg-red-100 text-red-600">YouTube</Badge>
               ) : (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-600">Telegram</Badge>
               )}
-              <Badge variant="outline">{item.source_name}</Badge>
+              <Badge 
+                variant="outline" 
+                className="truncate max-w-[150px] sm:max-w-[250px] block" 
+                title={item.source_name}
+              >
+                {item.source_name}
+              </Badge>
             </div>
             <span className="text-sm text-slate-500" suppressHydrationWarning>
                {new Date(item.created_at).toLocaleString("ko-KR", { 
