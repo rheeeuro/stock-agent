@@ -21,3 +21,16 @@ export interface DailySummary {
   sell_reason: string;
   created_at?: string;
 }
+
+export interface PaginatedResponse<T> {
+  success: boolean;
+  data: T[];
+  pagination: {
+    current_page: number;
+    limit: number;
+    total_items: number;
+    total_pages: number;
+    has_next_page: boolean;
+    has_prev_page: boolean;
+  } | null;
+}

@@ -9,6 +9,7 @@ from datetime import date
 from dotenv import load_dotenv
 from typing import List
 import yfinance as yf
+import math
 
 load_dotenv()
 
@@ -71,24 +72,38 @@ def get_db_connection():
 def read_root():
     return {"status": "ok", "service": "Stock Agent API"}
 
-@app.get("/api/contents", response_model=List[ContentAnalysis])
-def get_contents(limit: int = 20):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
+@app.get("/api/contents")
+def get_contents(page: int = 1, limit: int = 12):
     try:
-        query = """
-            SELECT 
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+
+        # 1. 프론트엔드에 전달할 OFFSET (건너뛸 개수) 계산
+        offset = (page - 1) * limit
+
+        # 2. 최근 24시간 동안의 '전체 데이터 개수' 조회 (프론트엔드 페이지네이션 UI를 위함)
+        count_query = """
+            SELECT COUNT(*) as total_count 
+            FROM content_analysis 
+            WHERE created_at >= NOW() - INTERVAL 7 DAY
+        """
+        cursor.execute(count_query)
+        total_count = cursor.fetchone()['total_count']
+
+        # 3. 최근 24시간 데이터를 페이지에 맞게 잘라서(LIMIT, OFFSET) 가져오기
+        data_query = """
+            SELECT
                 id, external_id, source_name, title, 
                 analysis_content, sentiment_score, 
                 platform, source_url, created_at 
             FROM content_analysis 
-            ORDER BY created_at DESC 
-        LIMIT %s
+            WHERE created_at >= NOW() - INTERVAL 7 DAY
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
         """
-        cursor.execute(query, (limit,))
+        cursor.execute(data_query, (limit, offset))
         result = cursor.fetchall()
-                
+
         # created_at을 문자열로 변환 (JSON 직렬화 위해)
         for row in result:
             if row['created_at']:
@@ -96,15 +111,30 @@ def get_contents(limit: int = 20):
             # 혹시 NULL이면 50점으로 채움
             if row['sentiment_score'] is None:
                 row['sentiment_score'] = 50
-                
-        cursor.close()
-        conn.close()
-        return result
+
+        # 4. 프론트엔드가 렌더링하기 편하도록 전체 페이지 수 등을 함께 계산해서 JSON으로 반환
+        total_pages = math.ceil(total_count / limit)
+
+        return {
+            "success": True,
+            "data": result,
+            "pagination": {
+                "current_page": page,
+                "limit": limit,
+                "total_items": total_count,
+                "total_pages": total_pages,
+                "has_next_page": page < total_pages,
+                "has_prev_page": page > 1
+            }
+        }
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ DB 조회 에러: {e}")
+        return {"success": False, "error": str(e)}
     finally:
-        cursor.close()
-        conn.close()
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 @app.get("/api/channels")
 def get_channels():
@@ -239,7 +269,7 @@ def get_stock_price(ticker: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/contents/{ticker}", response_model=List[ContentAnalysis])
-def get_contents_by_ticker(ticker: str, limit: int = 20):
+def get_contents_by_ticker(ticker: str):
     """특정 티커(종목)와 관련된 콘텐츠만 쏙쏙 뽑아오기"""
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
@@ -248,13 +278,13 @@ def get_contents_by_ticker(ticker: str, limit: int = 20):
         # related_tickers 컬럼에 검색하는 티커(예: NVDA)가 포함된 데이터만 찾습니다.
         query = """
             SELECT * FROM content_analysis 
-            WHERE related_tickers LIKE %s 
-            ORDER BY created_at DESC 
-            LIMIT %s
+            WHERE created_at >= NOW() - INTERVAL 7 DAY
+                AND related_tickers LIKE %s 
+            ORDER BY created_at DESC
         """
         # LIKE 검색을 위해 앞뒤로 %를 붙여줍니다 (예: '%NVDA%')
         search_term = f"%{ticker}%"
-        cursor.execute(query, (search_term, limit))
+        cursor.execute(query, (search_term,))
         results = cursor.fetchall()
         
         cursor.close()
