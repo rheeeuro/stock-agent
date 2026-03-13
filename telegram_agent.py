@@ -7,6 +7,7 @@ import requests
 import os
 import logging
 import sys
+import time
 
 # 로깅 설정: 시간 포함
 logging.basicConfig(
@@ -174,5 +175,16 @@ async def handler(event):
         save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers)
 
 logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
-client.start()
-client.run_until_disconnected()
+
+while True:
+    try:
+        client.start()
+        print("✅ 텔레그램 서버 연결 성공! 메시지 감시를 시작합니다.")
+        # 정상적일 때는 여기서 계속 대기하며 메시지를 받습니다.
+        client.run_until_disconnected() 
+        
+    except Exception as e:
+        # 에러가 나서 튕기더라도 프로그램이 종료되지 않고 여기로 빠집니다.
+        print(f"💥 텔레그램 연결 끊김 또는 에러 발생: {e}")
+        print("⏳ 10초 후 서버에 자동 재접속을 시도합니다...")
+        time.sleep(10) # 10초 쉬고 다시 while 루프 처음으로 돌아감!
