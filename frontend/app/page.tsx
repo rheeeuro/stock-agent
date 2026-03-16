@@ -1,14 +1,14 @@
 import { ContentAnalysis, DailySummary, PaginatedResponse } from "@/types";
 import { ContentCard } from "@/components/ContentCard";
-import { SentimentChart } from "@/components/SentimentChart";
+// import { SentimentChart } from "@/components/SentimentChart";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 
-async function getContents(page: number, limit: number): Promise<PaginatedResponse<ContentAnalysis>> {
+async function getContents(page: number, limit: number, market: string): Promise<PaginatedResponse<ContentAnalysis>> {
   try {
-    const res = await fetch(`http://127.0.0.1:8000/api/contents?page=${page}&limit=${limit}`, { 
+    const res = await fetch(`http://127.0.0.1:8000/api/contents?page=${page}&limit=${limit}&market=${market}`, { 
       cache: "no-store",
     });
     if (!res.ok) return { success: false, data: [], pagination: null };
@@ -49,11 +49,12 @@ export default async function Home(props: {
 }) {
   const params = await props.searchParams;
 
+  const currentMarket = (params?.market as string) || "ALL";
   const currentPage = Number(params?.page) || 1;
   const limit = 12;
 
   const [contentsRes, summary, summaryList] = await Promise.all([
-    getContents(currentPage, limit),
+    getContents(currentPage, limit, currentMarket),
     getDailySummary(),
     getDailySummaryList()
   ]);
@@ -76,9 +77,6 @@ export default async function Home(props: {
               YouTube 및 Telegram 데이터를 실시간 분석합니다.
             </p>
           </div>
-          <Badge variant="outline" className="px-3 py-1">
-           Today: {pagination?.total_items || 0}
-          </Badge>
         </div>
 
         {/* 요약 카드 & 차트 (그대로 유지) */}
@@ -113,6 +111,46 @@ export default async function Home(props: {
         )}
 
         {/* {data.length > 0 && <SentimentChart data={data} />} */}
+
+        {/* 🚀 시장 필터 탭 (Tabs) */}
+        <div className="flex items-start sm:items-center justify-between mb-6 pt-4 border-t border-slate-200 dark:border-slate-800 gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Link 
+              href="/?market=ALL&page=1"
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                currentMarket === "ALL" 
+                ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md" 
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              <Globe className="w-3 h-3 sm:w-4 sm:h-4" /> 전체보기
+            </Link>
+            <Link 
+              href="/?market=US&page=1"
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                currentMarket === "US" 
+                ? "bg-blue-600 text-white shadow-md" 
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              🇺🇸 미국 주식 (US)
+            </Link>
+            <Link 
+              href="/?market=KR&page=1"
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                currentMarket === "KR" 
+                ? "bg-red-500 text-white shadow-md" 
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              🇰🇷 한국 주식 (KR)
+            </Link>
+          </div>
+          
+          <Badge variant="outline" className="px-3 py-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">
+           Today: {pagination?.total_items || 0}
+          </Badge>
+        </div>
 
         {/* ✅ 콘텐츠 카드 그리드 (ContentCard 사용) */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

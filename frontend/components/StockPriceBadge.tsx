@@ -57,7 +57,7 @@ export function StockPriceBadge({ ticker }: { ticker: string }) {
   const Icon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
 
   return (
-    <span className={`ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold border ${colorClass}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold border ${colorClass}`}>
       {formatPrice(data.price, data.ticker)}
       <Icon className="w-4 h-4 mx-1" />
       {isUp ? "+" : ""}{data.change_percent.toFixed(2)}%

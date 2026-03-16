@@ -34,7 +34,7 @@ export function DailySummaryCard({ summary }: Props) {
               <span>강력 매수 (Buy)</span>
             </div>
             {summary.buy_ticker ? (
-              <Link href={`/stock/${summary.buy_ticker}`} className="flex items-center mb-2 group cursor-pointer">
+              <Link href={`/stock/${summary.buy_ticker}`} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 mb-3 sm:mb-2 group cursor-pointer">
                 <span className="text-xl font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors underline decoration-indigo-200 dark:decoration-indigo-900 underline-offset-4">
                   {summary.buy_stock || '종목 없음'}
                 </span>
@@ -59,7 +59,7 @@ export function DailySummaryCard({ summary }: Props) {
               <span>매도/관망 (Sell)</span>
             </div>
             {summary.sell_ticker ? (
-              <Link href={`/stock/${summary.sell_ticker}`} className="flex items-center mb-2 group cursor-pointer">
+              <Link href={`/stock/${summary.sell_ticker}`} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 mb-3 sm:mb-2 group cursor-pointer">
                 <span className="text-xl font-bold text-slate-800 dark:text-slate-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors underline decoration-rose-200 dark:decoration-rose-900 underline-offset-4">
                   {summary.sell_stock || '종목 없음'}
                 </span>

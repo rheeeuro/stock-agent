@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import mysql.connector
@@ -73,7 +73,11 @@ def read_root():
     return {"status": "ok", "service": "Stock Agent API"}
 
 @app.get("/api/contents")
-def get_contents(page: int = 1, limit: int = 12):
+def get_contents(
+    page: int = Query(1, description="현재 페이지 번호"), 
+    limit: int = Query(12, description="페이지 당 항목 수"),
+    market: str = Query("ALL", description="시장 필터 (ALL, US, KR 등)")
+):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -81,27 +85,30 @@ def get_contents(page: int = 1, limit: int = 12):
         # 1. 프론트엔드에 전달할 OFFSET (건너뛸 개수) 계산
         offset = (page - 1) * limit
 
+        where_clause = "WHERE created_at >= NOW() - INTERVAL 7 DAY"
+        query_params = []
+        
+        if market in ["US", "KR"]:
+            where_clause += " AND market = %s"
+            query_params.append(market)
+
         # 2. 최근 24시간 동안의 '전체 데이터 개수' 조회 (프론트엔드 페이지네이션 UI를 위함)
-        count_query = """
-            SELECT COUNT(*) as total_count 
-            FROM content_analysis 
-            WHERE created_at >= NOW() - INTERVAL 7 DAY
-        """
-        cursor.execute(count_query)
+        count_query = f"SELECT COUNT(*) as total_count FROM content_analysis {where_clause}"
+        cursor.execute(count_query, tuple(query_params))
         total_count = cursor.fetchone()['total_count']
 
         # 3. 최근 24시간 데이터를 페이지에 맞게 잘라서(LIMIT, OFFSET) 가져오기
-        data_query = """
+        data_query = f"""
             SELECT
                 id, external_id, source_name, title, 
                 analysis_content, sentiment_score, 
                 platform, source_url, created_at 
             FROM content_analysis 
-            WHERE created_at >= NOW() - INTERVAL 7 DAY
+            {where_clause}
             ORDER BY created_at DESC
             LIMIT %s OFFSET %s
         """
-        cursor.execute(data_query, (limit, offset))
+        cursor.execute(data_query, tuple(query_params + [limit, offset]))
         result = cursor.fetchall()
 
         # created_at을 문자열로 변환 (JSON 직렬화 위해)
@@ -113,7 +120,7 @@ def get_contents(page: int = 1, limit: int = 12):
                 row['sentiment_score'] = 50
 
         # 4. 프론트엔드가 렌더링하기 편하도록 전체 페이지 수 등을 함께 계산해서 JSON으로 반환
-        total_pages = math.ceil(total_count / limit)
+        total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
 
         return {
             "success": True,

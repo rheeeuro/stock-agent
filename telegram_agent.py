@@ -70,25 +70,25 @@ def get_target_channels():
         logging.error(f"❌ 채널 목록 로드 실패: {e}")
         return []
 
-def save_to_db(channel, title, content, analysis, score, url, related_tickers):
+def save_to_db(channel, title, content, analysis, score, url, related_tickers, market):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         tickers_json_str = json.dumps(related_tickers)
         query = """
             INSERT INTO content_analysis 
-            (external_id, source_name, title, analysis_content, sentiment_score, source_url, related_tickers, platform)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'telegram')
+            (external_id, source_name, title, analysis_content, sentiment_score, source_url, related_tickers, platform, market)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'telegram', %s)
         """
-        cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str))
+        cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str, market))
         conn.commit()
         conn.close()
-        logging.info(f"✅ DB 저장 완료: {channel} (점수: {score}, 티커: {related_tickers})")
+        logging.info(f"✅ DB 저장 완료: [{market}] {title} (점수: {score}, 티커: {related_tickers})")
     except Exception as e:
         logging.error(f"❌ DB 에러: {e}")
 
 def analyze_text(text):
-    if len(text) < 30: return None, None, None, None # 너무 짧으면 무시
+    if len(text) < 30: return None, None, None, None, None # 너무 짧으면 무시
 
     prompt = f"""
         [중요 지시사항]
@@ -103,6 +103,7 @@ def analyze_text(text):
             - title: 제목
             - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
                 - 🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 티커만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
+            - market: 이 메시지에서 주로 다루는 시장을 분류해라. (미국 주식이면 "US", 한국 주식이면 "KR", 암호화폐면 "CRYPTO", 애매하면 "UNKNOWN")
         
             [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
             
@@ -122,7 +123,8 @@ def analyze_text(text):
             "sentiment_score": 75,  
             "content": "분석 내용...", 
             "title": "제목",
-            "related_tickers": ["추출된", "티커", "목록"] 
+            "related_tickers": ["NVDA"], // 아닐 경우 []
+            "market": "US"
         }}
 
         [메시지 내용]: {text}
@@ -133,11 +135,11 @@ def analyze_text(text):
         if '</think>' in content: content = content.split('</think>')[-1].strip()
         data = json.loads(content)
         
-        if data.get('sentiment_score') == -1: return None, None, None, None
-        return data['title'], data['content'], data['sentiment_score'], data['related_tickers']
+        if data.get('sentiment_score') == -1: return None, None, None, None, None
+        return data['title'], data['content'], data['sentiment_score'], data['related_tickers'], data['market']
     except Exception as e:
         logging.error(f"AI 분석 에러: {e}")
-        return None, None, None, None
+        return None, None, None, None, None
 
 # --- 메인 로직 시작 ---
 
@@ -171,7 +173,7 @@ async def handler(event):
 
     logging.info(f"📩 [{channel_name}] 새 메시지 도착")
     
-    title, analysis, score, related_tickers = analyze_text(text)
+    title, analysis, score, related_tickers, market = analyze_text(text)
     
     if analysis:
         # 🚀 필터 1: 관련 티커가 없으면 스킵 (빈 리스트 등)
@@ -185,7 +187,7 @@ async def handler(event):
             return
             
         # 두 가지 필터를 모두 무사히 통과한 알짜배기 데이터만 저장!
-        save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers)
+        save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers, market)
 
 logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")
 

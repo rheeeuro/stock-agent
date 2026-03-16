@@ -53,6 +53,7 @@ AI_PROMPT_TEMPLATE = """
             - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
             - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
                 🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 티커만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
+            - market: 이 메시지에서 주로 다루는 시장을 분류해라. (미국 주식이면 "US", 한국 주식이면 "KR", 암호화폐면 "CRYPTO", 애매하면 "UNKNOWN")
         
             [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
             
@@ -71,7 +72,8 @@ AI_PROMPT_TEMPLATE = """
         {{
             "sentiment_score": 75,  // 아닐 경우 -1
             "content": "분석 내용..." // 아닐 경우 ""
-            "related_tickers": ["추출된", "티커", "목록"] // 아닐 경우 []
+            "related_tickers": ["NVDA"], // 아닐 경우 []
+            "market": "US"
         }}
 
         [자막 내용]: {content}
@@ -129,20 +131,20 @@ class StockYoutubeAgent:
         # 최종 공백 정리
         return content.strip()
 
-    def save_analysis(self, video_id, channel, title, content, score, related_tickers):
+    def save_analysis(self, video_id, channel, title, content, score, related_tickers, market):
         try:
             # 앞뒤의 markdown 코드 블록 마커 제거
             content = self.remove_markdown_code_blocks(content)
             tickers_json_str = json.dumps(related_tickers)
             
             query = """
-                INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, related_tickers, platform, source_url)
-                VALUES (%s, %s, %s, %s, %s, %s, 'youtube', %s)
+                INSERT INTO content_analysis (external_id, source_name, title, analysis_content, sentiment_score, related_tickers, market, platform, source_url)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'youtube', %s)
             """
             video_url = f"https://www.youtube.com/watch?v={video_id}"
-            self.cursor.execute(query, (video_id, channel, title, content, score, tickers_json_str, video_url))
+            self.cursor.execute(query, (video_id, channel, title, content, score, tickers_json_str, market, video_url))
             self.conn.commit()
-            logging.info(f"✅ DB 저장 완료: {title} (점수: {score}점)")
+            logging.info(f"✅ DB 저장 완료: [{market}] {title} (점수: {score}점)")
         except mysql.connector.Error as err:
             logging.error(f"❌ DB 저장 에러: {err}")
 
@@ -181,17 +183,17 @@ class StockYoutubeAgent:
             # 필터링 로직 추가
             if data['sentiment_score'] == -1:
                 logging.info(f"🚫 비주식 영상으로 판별됨: {title}")
-                return None, None, None  # 저장하지 않고 종료
+                return None, None, None, None  # 저장하지 않고 종료
 
-            logging.info(f"✅ AI 분석 완료: {len(data['content'])}자, 점수: {data['sentiment_score']}점")
-            return data['content'], data['sentiment_score'], data['related_tickers']
+            logging.info(f"✅ AI 분석 완료: [{data['market']}] {len(data['content'])}자, 점수: {data['sentiment_score']}점")
+            return data['content'], data['sentiment_score'], data['related_tickers'], data['market']
 
         except Exception as e:
             logging.error(f"❌ AI 분석/파싱 에러: {e}")
             # 에러 나면 기본값 반환 (내용은 원본, 점수는 50)
-            return None, 50
+            return None, 50, None, None
     
-    def send_telegram(self, channel, title, analysis, score=50, related_tickers=None):
+    def send_telegram(self, channel, title, analysis, score=50, related_tickers=None, market=None):
         """텔레그램 메시지 발송 함수"""
         try:
             # 1. 상태 이모지 결정
@@ -218,6 +220,7 @@ class StockYoutubeAgent:
                 f"📊 관점: {score}점 - {status}\n\n"
                 f"📺 {title}\n"
                 f"관련 종목 코드: {related_tickers}\n"
+                f"시장: {market}\n"
                 f"──────────────────\n"
                 f"{formatted_analysis}\n\n"
                 f"👉 [대시보드 바로가기](https://stock.rheeeuro.com)" # 링크 거는 문법
@@ -234,7 +237,7 @@ class StockYoutubeAgent:
                     "disable_web_page_preview": True # (선택) 링크 미리보기 끄기 (깔끔하게)
                 }
                 requests.post(url, data=data, timeout=10)
-            logging.info(f"📨 텔레그램 전송 성공: {title} ({score}점) -> {len(chat_ids)}개 채팅방")
+            logging.info(f"📨 텔레그램 전송 성공: [{market}] {title} ({score}점) -> {len(chat_ids)}개 채팅방")
                 
         except Exception as e:
             logging.error(f"❌ 텔레그램 에러: {e}")
@@ -264,13 +267,13 @@ class StockYoutubeAgent:
                 script_text = self.get_transcript(video_id)
                 
                 if script_text:
-                    analysis, score, related_tickers = self.analyze_with_ai(script_text, video_title)
+                    analysis, score, related_tickers, market = self.analyze_with_ai(script_text, video_title)
                     if analysis:
                         # 1. DB 저장
-                        self.save_analysis(video_id, name, video_title, analysis, score, related_tickers)
+                        self.save_analysis(video_id, name, video_title, analysis, score, related_tickers, market)
                         
                         # 2. 텔레그램 전송 (✅ score 인자 전달)
-                        self.send_telegram(name, video_title, analysis, score, related_tickers)
+                        self.send_telegram(name, video_title, analysis, score, related_tickers, market)
                         
                         # 3. 연속 호출 방지 딜레이
                         time.sleep(2)
