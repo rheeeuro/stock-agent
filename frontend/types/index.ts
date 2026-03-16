@@ -6,6 +6,7 @@ export interface ContentAnalysis {
   analysis_content: string;
   sentiment_score?: number;
   platform: 'youtube' | 'telegram' | 'news'; 
+  market: 'US' | 'KR' | 'CRYPTO' | "UNKNOWN";
   source_url?: string;    
   created_at: string;
 }

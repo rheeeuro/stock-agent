@@ -102,7 +102,7 @@ def get_contents(
             SELECT
                 id, external_id, source_name, title, 
                 analysis_content, sentiment_score, 
-                platform, source_url, created_at 
+                platform, market, source_url, created_at 
             FROM content_analysis 
             {where_clause}
             ORDER BY created_at DESC
