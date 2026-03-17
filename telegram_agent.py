@@ -17,6 +17,20 @@ logging.basicConfig(
     stream=sys.stdout
 )
 
+# ==========================================
+# 🚀 신규 추가: 특정 에러 발생 시 자동 자폭(재시작) 트리거
+# ==========================================
+class SuicideOnOldMessageFilter(logging.Filter):
+    def filter(self, record):
+        if "Server sent a very old message" in record.getMessage():
+            # 이 문구가 감지되면 즉시 에러를 뿜고 프로세스를 강제 폭파시킵니다!
+            print("🚨 [치명적 에러 감지] Telethon 세션 꼬임 발생! PM2 재시작을 위해 강제 종료합니다...", flush=True)
+            os._exit(1) # sys.exit()보다 더 확실하고 즉각적인 OS 강제 종료
+        return True
+
+# telethon 내부에서 발생하는 로그에 이 스나이퍼 필터를 장착합니다.
+logging.getLogger('telethon').addFilter(SuicideOnOldMessageFilter())
+
 from dotenv import load_dotenv
 load_dotenv()
 
