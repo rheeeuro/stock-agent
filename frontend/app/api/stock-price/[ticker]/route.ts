@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { API_BASE } from '@/lib/api';
 
 // 브라우저 대신 Next.js 서버가 파이썬 백엔드를 찔러주는 역할
 export async function GET(request: Request, context: any) {
@@ -7,8 +8,7 @@ export async function GET(request: Request, context: any) {
     const resolvedParams = await Promise.resolve(context.params);
     const ticker = resolvedParams.ticker;
 
-    // 여기는 서버 내부이므로 127.0.0.1 통신이 완벽하게 작동합니다!
-    const res = await fetch(`http://127.0.0.1:8000/api/stock-price/${ticker}`, {
+    const res = await fetch(`${API_BASE}/api/stock-price/${ticker}`, {
       cache: 'no-store'
     });
     

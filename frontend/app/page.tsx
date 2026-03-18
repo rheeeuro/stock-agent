@@ -1,45 +1,23 @@
 import { ContentAnalysis, DailySummary, PaginatedResponse } from "@/types";
 import { ContentCard } from "@/components/ContentCard";
-// import { SentimentChart } from "@/components/SentimentChart";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { Badge } from "@/components/ui/badge";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
 
 async function getContents(page: number, limit: number, market: string): Promise<PaginatedResponse<ContentAnalysis>> {
-  try {
-    const res = await fetch(`http://127.0.0.1:8000/api/contents?page=${page}&limit=${limit}&market=${market}`, { 
-      cache: "no-store",
-    });
-    if (!res.ok) return { success: false, data: [], pagination: null };
-    return res.json(); // 이제 백엔드가 { success, data, pagination } 형태로 내려줍니다.
-  } catch (e) {
-    console.error(e);
-    return { success: false, data: [], pagination: null };
-  }
+  return apiFetch(`/api/contents?page=${page}&limit=${limit}&market=${market}`, {
+    success: false, data: [], pagination: null,
+  });
 }
 
 async function getDailySummary(): Promise<DailySummary | null> {
-  try {
-    const res = await fetch("http://127.0.0.1:8000/api/daily-summary", {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch (e) {
-    console.error(e);
-    return null;
-  }
+  return apiFetch("/api/daily-summary", null);
 }
 
 async function getDailySummaryList(): Promise<DailySummary[]> {
-  try {
-    const res = await fetch("http://127.0.0.1:8000/api/daily-summary-list?limit=5", { cache: "no-store" });
-    if (!res.ok) return [];
-    return res.json();
-  } catch (e) {
-    return [];
-  }
+  return apiFetch("/api/daily-summary-list?limit=5", []);
 }
 
 export const dynamic = 'force-dynamic';
@@ -79,7 +57,7 @@ export default async function Home(props: {
           </div>
         </div>
 
-        {/* 요약 카드 & 차트 (그대로 유지) */}
+        {/* 요약 카드 */}
         <DailySummaryCard summary={summary} />
 
         {summaryList.length > 0 && (
@@ -109,8 +87,6 @@ export default async function Home(props: {
             </div>
           </div>
         )}
-
-        {/* {data.length > 0 && <SentimentChart data={data} />} */}
 
         {/* 🚀 시장 필터 탭 (Tabs) */}
         <div className="flex items-start sm:items-center justify-between mb-6 pt-4 border-t border-slate-200 dark:border-slate-800 gap-4">
@@ -148,11 +124,11 @@ export default async function Home(props: {
           </div>
           
           <Badge variant="outline" className="px-3 py-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">
-           Today: {pagination?.total_items || 0}
+            Weekly: {pagination?.total_items || 0}
           </Badge>
         </div>
 
-        {/* ✅ 콘텐츠 카드 그리드 (ContentCard 사용) */}
+        {/* ✅ 콘텐츠 카드 그리드 */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((item) => (
             <ContentCard key={item.id} item={item} />
@@ -163,14 +139,13 @@ export default async function Home(props: {
           <div className="pt-8 flex items-center justify-center gap-4">
             {pagination.has_prev_page ? (
               <Link
-                href={`/?page=${pagination.current_page - 1}`}
+                href={`/?market=${currentMarket}&page=${pagination.current_page - 1}`}
                 className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 shadow-sm transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 이전
               </Link>
             ) : (
-              // 비활성화 상태 버튼 (더 이상 이전 페이지가 없을 때)
               <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed dark:border-slate-800 dark:bg-slate-950 dark:text-slate-600">
                 <ChevronLeft className="w-4 h-4" />
                 이전
@@ -183,14 +158,13 @@ export default async function Home(props: {
 
             {pagination.has_next_page ? (
               <Link
-                href={`/?page=${pagination.current_page + 1}`}
+                href={`/?market=${currentMarket}&page=${pagination.current_page + 1}`}
                 className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 shadow-sm transition-colors"
               >
                 다음
                 <ChevronRight className="w-4 h-4" />
               </Link>
             ) : (
-              // 비활성화 상태 버튼
               <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed dark:border-slate-800 dark:bg-slate-950 dark:text-slate-600">
                 다음
                 <ChevronRight className="w-4 h-4" />

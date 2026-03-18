@@ -3,7 +3,6 @@ from telethon import TelegramClient, events
 from ollama import Client
 import mysql.connector
 import json
-import requests
 import os
 import logging
 import sys
@@ -18,66 +17,42 @@ logging.basicConfig(
 )
 
 # ==========================================
-# 🚀 신규 추가: 특정 에러 발생 시 자동 자폭(재시작) 트리거
+# 🚀 특정 에러 발생 시 자동 자폭(재시작) 트리거
 # ==========================================
 class SuicideOnOldMessageFilter(logging.Filter):
     def filter(self, record):
         if "Server sent a very old message" in record.getMessage():
-            # 이 문구가 감지되면 즉시 에러를 뿜고 프로세스를 강제 폭파시킵니다!
             print("🚨 [치명적 에러 감지] Telethon 세션 꼬임 발생! PM2 재시작을 위해 강제 종료합니다...", flush=True)
-            os._exit(1) # sys.exit()보다 더 확실하고 즉각적인 OS 강제 종료
+            os._exit(1)
         return True
 
-# telethon 내부에서 발생하는 로그에 이 스나이퍼 필터를 장착합니다.
 logging.getLogger('telethon').addFilter(SuicideOnOldMessageFilter())
 
-from dotenv import load_dotenv
-load_dotenv()
+from core.config import DB_CONFIG, TELEGRAM_API_ID, TELEGRAM_API_HASH, OLLAMA_HOST, OLLAMA_MODEL
+from core.db import get_db
+from core.prompts import TELEGRAM_ANALYSIS_PROMPT
+from core.ai_utils import parse_ai_json
 
-# ==========================================
-# [설정 1] 텔레그램 API 정보 (my.telegram.org)
-# ==========================================
-API_ID = os.getenv('TELEGRAM_API_ID')       # 예: 1234567
-API_HASH = os.getenv('TELEGRAM_API_HASH') # 예: 'a1b2c3...'
-SESSION_NAME = 'stock_session'      # 세션 파일 이름 (자동 생성됨)
-
-# DB 및 기타 설정 (기존과 동일)
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', '127.0.0.1'),
-    'user': os.getenv('DB_USER', 'stock_user'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'database': os.getenv('DB_NAME', 'stock_agent'),
-    'port': int(os.getenv('DB_PORT', '3307')),
-    'charset': 'utf8mb4',
-    'collation': 'utf8mb4_unicode_ci',
-    'use_unicode': True,
-}
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-CHAT_ID = os.getenv('CHAT_ID')
-
+SESSION_NAME = 'stock_session'
 
 # AI 클라이언트
-ai_client = Client(host='http://127.0.0.1:11434')
+ai_client = Client(host=OLLAMA_HOST)
 
 def get_target_channels():
     """DB에서 감시할 채널 목록을 가져옴"""
     channels = []
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        # 활성화된 채널만 조회 (sources 테이블 사용)
-        cursor.execute("SELECT identifier FROM sources WHERE platform = 'telegram' AND is_active = TRUE")
-        rows = cursor.fetchall()
-        
-        for row in rows:
-            ident = row['identifier']
-            # 숫자로 된 ID(예: -100123...)는 정수형(int)으로 변환해야 텔레톤이 인식함
-            if ident.startswith('-') or ident.isdigit():
-                channels.append(int(ident))
-            else:
-                channels.append(ident) # username은 문자열 그대로
-                
-        conn.close()
+        with get_db() as (conn, cursor):
+            cursor.execute("SELECT identifier FROM sources WHERE platform = 'telegram' AND is_active = TRUE")
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                ident = row['identifier']
+                if ident.startswith('-') or ident.isdigit():
+                    channels.append(int(ident))
+                else:
+                    channels.append(ident)
+                    
         logging.info(f"📋 감시 대상 채널 로드 완료: {len(channels)}개")
         return channels
     except Exception as e:
@@ -86,70 +61,33 @@ def get_target_channels():
 
 def save_to_db(channel, title, content, analysis, score, url, related_tickers, market):
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        tickers_json_str = json.dumps(related_tickers)
-        query = """
-            INSERT INTO content_analysis 
-            (external_id, source_name, title, analysis_content, sentiment_score, source_url, related_tickers, platform, market)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'telegram', %s)
-        """
-        cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str, market))
-        conn.commit()
-        conn.close()
+        with get_db() as (conn, cursor):
+            tickers_json_str = json.dumps(related_tickers)
+            query = """
+                INSERT INTO content_analysis 
+                (external_id, source_name, title, analysis_content, sentiment_score, source_url, related_tickers, platform, market)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'telegram', %s)
+            """
+            cursor.execute(query, (url, channel, title, analysis, score, url, tickers_json_str, market))
+            conn.commit()
         logging.info(f"✅ DB 저장 완료: [{market}] {title} (점수: {score}, 티커: {related_tickers})")
     except Exception as e:
         logging.error(f"❌ DB 에러: {e}")
 
 def analyze_text(text):
-    if len(text) < 30: return None, None, None, None, None # 너무 짧으면 무시
+    if len(text) < 30: return None, None, None, None, None
 
-    prompt = f"""
-        [중요 지시사항]
-        먼저 이 메시지가 **'주식, 경제, 투자, 기업 분석, 시장 전망'**과 관련된 내용인지 판단해.
-        
-        1. 만약 **관련 없는 내용(일상, 먹방, 게임, 단순 유머 등)**이라면:
-           반드시 JSON의 sentiment_score를 **-1**로 설정하고 content는 비워둬.
-           
-        2. **관련 있는 내용**이라면 다음 두 가지를 분석해서 반드시 **JSON 포맷**으로만 출력해.
-            - sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
-            - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
-            - title: 제목
-            - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
-                - 🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 티커만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
-            - market: 이 메시지에서 주로 다루는 시장을 분류해라. (미국 주식이면 "US", 한국 주식이면 "KR", 암호화폐면 "CRYPTO", 애매하면 "UNKNOWN")
-        
-            [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
-            
-                ## 1. 3줄 핵심 요약
-                - (요약 1)
-                - (요약 2)  
-                - (요약 3)
-                
-                ## 2. 주요 언급 종목
-                - **종목명**: (호재/악재 판단)
-                
-                ## 3. 대응 전략
-                > (한 줄 조언)
-        
-        [필수 출력 형식 - JSON Only]:
-        {{
-            "sentiment_score": 75,  
-            "content": "분석 내용...", 
-            "title": "제목",
-            "related_tickers": ["NVDA"], // 아닐 경우 []
-            "market": "US"
-        }}
-
-        [메시지 내용]: {text}
-    """
+    prompt = TELEGRAM_ANALYSIS_PROMPT.format(text=text)
     try:
-        response = ai_client.chat(model='deepseek-r1:8b', messages=[{'role': 'user', 'content': prompt}])
-        content = response['message']['content'].replace('```json', '').replace('```', '').strip()
-        if '</think>' in content: content = content.split('</think>')[-1].strip()
-        data = json.loads(content)
+        response = ai_client.chat(model=OLLAMA_MODEL, messages=[{'role': 'user', 'content': prompt}])
+        data = parse_ai_json(response['message']['content'])
         
-        if data.get('sentiment_score') == -1: return None, None, None, None, None
+        if data is None:
+            return None, None, None, None, None
+        
+        if data.get('sentiment_score') == -1:
+            return None, None, None, None, None
+            
         return data['title'], data['content'], data['sentiment_score'], data['related_tickers'], data['market']
     except Exception as e:
         logging.error(f"AI 분석 에러: {e}")
@@ -164,7 +102,7 @@ if not target_chats:
     logging.warning("⚠️ 감시할 채널이 없습니다. DB를 확인해주세요.")
     sys.exit()
 
-client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
+client = TelegramClient(SESSION_NAME, TELEGRAM_API_ID, TELEGRAM_API_HASH)
 
 # 2. 가져온 채널 목록(target_chats)을 리스너에 등록
 @client.on(events.NewMessage(chats=target_chats))
@@ -173,7 +111,7 @@ async def handler(event):
     channel_name = chat.title if getattr(chat, 'title', None) else "Unknown"
     
     text = event.message.message
-    if not text: # 메시지가 비어있거나 이미지 등 텍스트가 없는 경우 스킵
+    if not text:
         return
 
     username = getattr(chat, 'username', None)
@@ -190,7 +128,7 @@ async def handler(event):
     title, analysis, score, related_tickers, market = analyze_text(text)
     
     if analysis:
-        # 🚀 필터 1: 관련 티커가 없으면 스킵 (빈 리스트 등)
+        # 🚀 필터 1: 관련 티커가 없으면 스킵
         if not related_tickers or len(related_tickers) == 0:
             logging.info(f"⏭️ [스킵] 구체적인 티커(Ticker)가 없어 저장하지 않습니다.")
             return
@@ -200,7 +138,6 @@ async def handler(event):
             logging.info(f"⏭️ [스킵] 점수가 {score}점(40~70 구간)이라 저장하지 않습니다.")
             return
             
-        # 두 가지 필터를 모두 무사히 통과한 알짜배기 데이터만 저장!
         save_to_db(channel_name, title, text, analysis, score, msg_link, related_tickers, market)
 
 logging.info(f"🚀 텔레그램 감시 시작 (대상 {len(target_chats)}개)...")

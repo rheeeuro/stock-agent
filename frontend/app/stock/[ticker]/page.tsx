@@ -2,39 +2,22 @@ import { ContentAnalysis } from "@/types";
 import { ContentCard } from "@/components/ContentCard";
 import { StockPriceBadge } from "@/components/StockPriceBadge";
 import { SentimentChart } from "@/components/SentimentChart";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 // 특정 종목의 데이터를 백엔드에서 가져오는 함수
 async function getTickerContents(ticker: string): Promise<ContentAnalysis[]> {
-  try {
-    const res = await fetch(`http://127.0.0.1:8000/api/contents/${ticker}`, { cache: "no-store" });
-    if (!res.ok) return [];
-    return res.json();
-  } catch (e) {
-    return [];
-  }
+  return apiFetch(`/api/contents/${ticker}`, []);
 }
 
 async function getStockNameFromDB(ticker: string): Promise<string> {
-  try {
-    const res = await fetch(`http://127.0.0.1:8000/api/stock-name/${ticker}`, { cache: "no-store" });
-    if (!res.ok) return ticker;
-    const data = await res.json();
-    return data.name;
-  } catch (e) {
-    return ticker;
-  }
+  const data = await apiFetch<{ name: string }>(`/api/stock-name/${ticker}`, { name: ticker });
+  return data.name;
 }
 
 async function getStockHistory(ticker: string): Promise<any[]> {
-  try {
-    const res = await fetch(`http://127.0.0.1:8000/api/stock-history/${ticker}`, { cache: "no-store" });
-    if (!res.ok) return [];
-    return res.json();
-  } catch (e) {
-    return [];
-  }
+  return apiFetch(`/api/stock-history/${ticker}`, []);
 }
 
 export default async function StockDetailPage({ params }: { params: { ticker: string } }) {
@@ -47,7 +30,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
     getStockHistory(decodedTicker)
   ]);
 
-  // DB에서 찾은 이름이 영문 티커와 다르면(즉, 한글 이름을 찾았으면) "엔비디아(NVDA)" 형태로 조합
+  // DB에서 찾은 이름이 영문 티커와 다르면 "엔비디아(NVDA)" 형태로 조합
   const displayTitle = stockName !== decodedTicker ? `${stockName}(${decodedTicker})` : decodedTicker;
 
   return (
@@ -60,7 +43,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
             <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold flex items-center text-slate-900 dark:text-slate-100">
+            <h1 className="text-3xl font-bold flex items-center text-slate-900 dark:text-slate-100 gap-4">
               {displayTitle} 집중 분석
               <StockPriceBadge ticker={decodedTicker} />
             </h1>

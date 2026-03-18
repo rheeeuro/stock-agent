@@ -1,16 +1,15 @@
 import { DailySummary } from "@/types";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
+import { apiFetch } from "@/lib/api";
 import { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 // API 호출 함수
 async function getReportByDate(date: string): Promise<DailySummary | null> {
-  const res = await fetch(`http://127.0.0.1:8000/api/daily-summary/${date}`, {
+  return apiFetch(`/api/daily-summary/${date}`, null, {
     next: { revalidate: 3600 }, // 1시간 캐싱 (서버 부하 감소)
-  });
-  if (!res.ok) return null;
-  return res.json();
+  } as RequestInit);
 }
 
 // 🚀 핵심: 동적 메타데이터 생성 (SEO)
@@ -39,7 +38,7 @@ export async function generateMetadata({ params }: { params: { date: string } })
 
 // 페이지 UI 렌더링
 export default async function ReportPage({ params }: { params: { date: string } }) {
-    const resolvedParams = await params; // 👈 핵심: params를 await로 풀어줌
+    const resolvedParams = await params;
     const date = resolvedParams.date;
   
     const report = await getReportByDate(date);
@@ -54,7 +53,6 @@ export default async function ReportPage({ params }: { params: { date: string } 
 
     return (
         <main className="min-h-screen bg-slate-50 p-8 dark:bg-slate-950">
-            {/* 🚀 max-w-4xl 을 max-w-6xl 로 변경! */}
             <div className="mx-auto max-w-6xl space-y-6">
                 <Link href="/" className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
           <ArrowLeft className="w-4 h-4 mr-1" /> 메인으로 돌아가기

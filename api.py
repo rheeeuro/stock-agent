@@ -1,17 +1,13 @@
-import os
+import math
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import mysql.connector
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional
-from datetime import date
-from dotenv import load_dotenv
-from typing import List
 import yfinance as yf
-import math
 
-load_dotenv()
+from core.config import DB_CONFIG
+from core.db import get_db
 
 app = FastAPI()
 
@@ -28,18 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 2. DB 설정 (.env의 DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT 사용)
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', '127.0.0.1'),
-    'user': os.getenv('DB_USER', 'stock_user'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'database': os.getenv('DB_NAME', 'stock_agent'),
-    'port': int(os.getenv('DB_PORT', '3307')),
-    'charset': 'utf8mb4',
-    'collation': 'utf8mb4_unicode_ci',
-    'use_unicode': True,
-}
 
 # 3. 데이터 모델 정의 (TypeScript Interface와 같은 역할)
 class ContentAnalysis(BaseModel):
@@ -63,9 +47,6 @@ class DailySummary(BaseModel):
     sell_ticker: Optional[str] = None
     sell_reason: str
 
-def get_db_connection():
-    return mysql.connector.connect(**DB_CONFIG)
-
 # --- API 엔드포인트 ---
 
 @app.get("/")
@@ -79,106 +60,87 @@ def get_contents(
     market: str = Query("ALL", description="시장 필터 (ALL, US, KR 등)")
 ):
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
+        with get_db() as (conn, cursor):
+            # 1. 프론트엔드에 전달할 OFFSET (건너뛸 개수) 계산
+            offset = (page - 1) * limit
 
-        # 1. 프론트엔드에 전달할 OFFSET (건너뛸 개수) 계산
-        offset = (page - 1) * limit
+            where_clause = "WHERE created_at >= NOW() - INTERVAL 7 DAY"
+            query_params = []
+            
+            if market in ["US", "KR"]:
+                where_clause += " AND market = %s"
+                query_params.append(market)
 
-        where_clause = "WHERE created_at >= NOW() - INTERVAL 7 DAY"
-        query_params = []
-        
-        if market in ["US", "KR"]:
-            where_clause += " AND market = %s"
-            query_params.append(market)
+            # 2. 전체 데이터 개수 조회 (프론트엔드 페이지네이션 UI를 위함)
+            count_query = f"SELECT COUNT(*) as total_count FROM content_analysis {where_clause}"
+            cursor.execute(count_query, tuple(query_params))
+            total_count = cursor.fetchone()['total_count']
 
-        # 2. 최근 24시간 동안의 '전체 데이터 개수' 조회 (프론트엔드 페이지네이션 UI를 위함)
-        count_query = f"SELECT COUNT(*) as total_count FROM content_analysis {where_clause}"
-        cursor.execute(count_query, tuple(query_params))
-        total_count = cursor.fetchone()['total_count']
+            # 3. 데이터를 페이지에 맞게 잘라서(LIMIT, OFFSET) 가져오기
+            data_query = f"""
+                SELECT
+                    id, external_id, source_name, title, 
+                    analysis_content, sentiment_score, 
+                    platform, market, source_url, created_at 
+                FROM content_analysis 
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+            """
+            cursor.execute(data_query, tuple(query_params + [limit, offset]))
+            result = cursor.fetchall()
 
-        # 3. 최근 24시간 데이터를 페이지에 맞게 잘라서(LIMIT, OFFSET) 가져오기
-        data_query = f"""
-            SELECT
-                id, external_id, source_name, title, 
-                analysis_content, sentiment_score, 
-                platform, market, source_url, created_at 
-            FROM content_analysis 
-            {where_clause}
-            ORDER BY created_at DESC
-            LIMIT %s OFFSET %s
-        """
-        cursor.execute(data_query, tuple(query_params + [limit, offset]))
-        result = cursor.fetchall()
+            # created_at을 문자열로 변환 (JSON 직렬화 위해)
+            for row in result:
+                if row['created_at']:
+                    row['created_at'] = str(row['created_at'])
+                if row['sentiment_score'] is None:
+                    row['sentiment_score'] = 50
 
-        # created_at을 문자열로 변환 (JSON 직렬화 위해)
-        for row in result:
-            if row['created_at']:
-                row['created_at'] = str(row['created_at'])
-            # 혹시 NULL이면 50점으로 채움
-            if row['sentiment_score'] is None:
-                row['sentiment_score'] = 50
+            # 4. 전체 페이지 수 등을 함께 계산해서 JSON으로 반환
+            total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
 
-        # 4. 프론트엔드가 렌더링하기 편하도록 전체 페이지 수 등을 함께 계산해서 JSON으로 반환
-        total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
-
-        return {
-            "success": True,
-            "data": result,
-            "pagination": {
-                "current_page": page,
-                "limit": limit,
-                "total_items": total_count,
-                "total_pages": total_pages,
-                "has_next_page": page < total_pages,
-                "has_prev_page": page > 1
+            return {
+                "success": True,
+                "data": result,
+                "pagination": {
+                    "current_page": page,
+                    "limit": limit,
+                    "total_items": total_count,
+                    "total_pages": total_pages,
+                    "has_next_page": page < total_pages,
+                    "has_prev_page": page > 1
+                }
             }
-        }
 
     except Exception as e:
         print(f"❌ DB 조회 에러: {e}")
         return {"success": False, "error": str(e)}
-    finally:
-        if conn and conn.is_connected():
-            cursor.close()
-            conn.close()
 
 @app.get("/api/channels")
 def get_channels():
     """모니터링 중인 채널 목록"""
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    try:
+    with get_db() as (conn, cursor):
         cursor.execute("SELECT * FROM sources WHERE platform = 'youtube'")
         return cursor.fetchall()
-    finally:
-        cursor.close()
-        conn.close()
 
 @app.get("/api/daily-summary", response_model=Optional[DailySummary])
 def get_daily_summary():
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        # 가장 최신 리포트 1개만 조회
-        query = """
-            SELECT * FROM daily_summary 
-            ORDER BY report_date DESC, id DESC 
-            LIMIT 1
-        """
-        cursor.execute(query)
-        result = cursor.fetchone()
-        
-        cursor.close()
-        conn.close()
-        
-        if result:
-            # 날짜 객체를 문자열로 변환
-            if isinstance(result['report_date'], date):
-                result['report_date'] = result['report_date'].isoformat()
-            return result
-        return None
+        with get_db() as (conn, cursor):
+            query = """
+                SELECT * FROM daily_summary 
+                ORDER BY report_date DESC, id DESC 
+                LIMIT 1
+            """
+            cursor.execute(query)
+            result = cursor.fetchone()
+            
+            if result:
+                if isinstance(result['report_date'], date):
+                    result['report_date'] = result['report_date'].isoformat()
+                return result
+            return None
         
     except Exception as e:
         print(f"Error: {e}")
@@ -188,25 +150,20 @@ def get_daily_summary():
 def get_daily_summary_by_date(report_date: str):
     """특정 날짜(YYYY-MM-DD)의 일일 요약 리포트 조회"""
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        query = """
-            SELECT * FROM daily_summary 
-            WHERE report_date = %s 
-            LIMIT 1
-        """
-        cursor.execute(query, (report_date,))
-        result = cursor.fetchone()
-        
-        cursor.close()
-        conn.close()
-        
-        if result:
-            if isinstance(result['report_date'], date):
-                result['report_date'] = result['report_date'].isoformat()
-            return result
-        return None
+        with get_db() as (conn, cursor):
+            query = """
+                SELECT * FROM daily_summary 
+                WHERE report_date = %s 
+                LIMIT 1
+            """
+            cursor.execute(query, (report_date,))
+            result = cursor.fetchone()
+            
+            if result:
+                if isinstance(result['report_date'], date):
+                    result['report_date'] = result['report_date'].isoformat()
+                return result
+            return None
         
     except Exception as e:
         print(f"Error: {e}")
@@ -216,27 +173,21 @@ def get_daily_summary_by_date(report_date: str):
 def get_daily_summary_list(limit: int = 7):
     """최근 N일치의 일일 요약 리포트 목록 조회"""
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        # 최근 날짜순으로 limit 개수만큼 가져옵니다
-        query = """
-            SELECT * FROM daily_summary 
-            ORDER BY created_at DESC 
-            LIMIT %s
-        """
-        cursor.execute(query, (limit,))
-        results = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
-        # 날짜 포맷팅 (YYYY-MM-DD)
-        for row in results:
-            if isinstance(row['report_date'], date) or hasattr(row['report_date'], 'isoformat'):
-                row['report_date'] = str(row['report_date']).split(' ')[0]
-                
-        return results
+        with get_db() as (conn, cursor):
+            query = """
+                SELECT * FROM daily_summary 
+                ORDER BY created_at DESC 
+                LIMIT %s
+            """
+            cursor.execute(query, (limit,))
+            results = cursor.fetchall()
+            
+            # 날짜 포맷팅 (YYYY-MM-DD)
+            for row in results:
+                if isinstance(row['report_date'], date) or hasattr(row['report_date'], 'isoformat'):
+                    row['report_date'] = str(row['report_date']).split(' ')[0]
+                    
+            return results
         
     except Exception as e:
         print(f"Error: {e}")
@@ -246,10 +197,7 @@ def get_daily_summary_list(limit: int = 7):
 def get_stock_price(ticker: str):
     """야후 파이낸스를 통해 실시간 주가 및 등락률 조회"""
     try:
-        # yfinance를 통해 주식 정보 가져오기
         stock = yf.Ticker(ticker)
-        
-        # 최근 2일치 데이터를 가져와서 전일 대비 등락률 계산
         hist = stock.history(period="2d")
         
         if hist.empty or len(hist) < 1:
@@ -277,32 +225,24 @@ def get_stock_price(ticker: str):
 
 @app.get("/api/contents/{ticker}", response_model=List[ContentAnalysis])
 def get_contents_by_ticker(ticker: str):
-    """특정 티커(종목)와 관련된 콘텐츠만 쏙쏙 뽑아오기"""
+    """특정 티커(종목)와 관련된 콘텐츠 조회"""
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        # related_tickers 컬럼에 검색하는 티커(예: NVDA)가 포함된 데이터만 찾습니다.
-        query = """
-            SELECT * FROM content_analysis 
-            WHERE created_at >= NOW() - INTERVAL 7 DAY
-                AND related_tickers LIKE %s 
-            ORDER BY created_at DESC
-        """
-        # LIKE 검색을 위해 앞뒤로 %를 붙여줍니다 (예: '%NVDA%')
-        search_term = f"%{ticker}%"
-        cursor.execute(query, (search_term,))
-        results = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
-        # 시간 포맷팅
-        for row in results:
-            if isinstance(row['created_at'], datetime):
-                row['created_at'] = row['created_at'].isoformat()
-                
-        return results
+        with get_db() as (conn, cursor):
+            query = """
+                SELECT * FROM content_analysis 
+                WHERE created_at >= NOW() - INTERVAL 7 DAY
+                    AND related_tickers LIKE %s 
+                ORDER BY created_at DESC
+            """
+            search_term = f"%{ticker}%"
+            cursor.execute(query, (search_term,))
+            results = cursor.fetchall()
+            
+            for row in results:
+                if isinstance(row['created_at'], datetime):
+                    row['created_at'] = row['created_at'].isoformat()
+                    
+            return results
         
     except Exception as e:
         print(f"Error: {e}")
@@ -312,26 +252,19 @@ def get_contents_by_ticker(ticker: str):
 def get_stock_name(ticker: str):
     """DB 기록을 뒤져서 티커의 한글 종목명을 찾아옵니다"""
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor(dictionary=True)
-        
-        # 매수/매도 기록에서 이 티커와 짝지어졌던 한글 이름을 하나만 가져옵니다.
-        query = """
-            SELECT buy_stock AS stock_name FROM daily_summary WHERE buy_ticker = %s
-            UNION
-            SELECT sell_stock AS stock_name FROM daily_summary WHERE sell_ticker = %s
-            LIMIT 1
-        """
-        cursor.execute(query, (ticker, ticker))
-        result = cursor.fetchone()
-        
-        cursor.close()
-        conn.close()
-        
-        # 한글 이름을 찾았으면 반환, 못 찾았으면 그냥 영문 티커 반환
-        if result and result['stock_name']:
-            return {"name": result['stock_name']}
-        return {"name": ticker}
+        with get_db() as (conn, cursor):
+            query = """
+                SELECT buy_stock AS stock_name FROM daily_summary WHERE buy_ticker = %s
+                UNION
+                SELECT sell_stock AS stock_name FROM daily_summary WHERE sell_ticker = %s
+                LIMIT 1
+            """
+            cursor.execute(query, (ticker, ticker))
+            result = cursor.fetchone()
+            
+            if result and result['stock_name']:
+                return {"name": result['stock_name']}
+            return {"name": ticker}
         
     except Exception as e:
         print(f"이름 찾기 에러: {e}")
@@ -342,14 +275,13 @@ def get_stock_history(ticker: str):
     """최근 7일 주가 데이터 가져오기 (차트 오버레이용)"""
     try:
         stock = yf.Ticker(ticker)
-        # 최근 7일치 데이터 조회
         hist = stock.history(period="7d")
         
         result = []
         if not hist.empty:
             for date, row in hist.iterrows():
                 result.append({
-                    "date": date.strftime("%Y-%m-%d"), # YYYY-MM-DD 형식
+                    "date": date.strftime("%Y-%m-%d"),
                     "price": round(row['Close'], 2)
                 })
         return result
