@@ -53,11 +53,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function SentimentChart({ 
   data, 
   history = [], 
-  ticker = "" 
+  displayName = "" 
 }: { 
   data: ContentAnalysis[], 
   history?: HistoryData[], 
-  ticker?: string 
+  displayName?: string 
 }) {
   
   const isDetailPage = history && history.length > 0;
@@ -144,7 +144,7 @@ export function SentimentChart({
   return (
     <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8">
       <h3 className="text-lg font-bold mb-6 text-slate-800 dark:text-slate-100 flex items-center gap-2">
-        {isDetailPage ? `📈 ${ticker} 여론 vs 실제 주가 흐름` : "📈 전체 AI 여론 (감성 점수) 변화 추이"}
+        {isDetailPage ? `📈 ${displayName} 여론 vs 실제 주가 흐름` : "📈 전체 AI 여론 (감성 점수) 변화 추이"}
       </h3>
       
       <div className="h-72 w-full text-xs">

@@ -54,7 +54,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
         {/* 데이터가 있을 경우 차트와 카드 표시 */}
         {contents.length > 0 ? (
           <>
-            <SentimentChart data={contents} history={history} ticker={decodedTicker} />
+            <SentimentChart data={contents} history={history} displayName={stockName} />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {contents.map((item) => (
                 <ContentCard key={item.id} item={item} />
