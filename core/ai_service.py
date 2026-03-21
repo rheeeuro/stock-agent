@@ -15,7 +15,7 @@ class AnalysisResult:
     title: str = ""
     content: str = ""
     sentiment_score: int = 50
-    related_companies: list = field(default_factory=list)
+    related_tickers: list = field(default_factory=list)
     market: str = "UNKNOWN"
 
 
@@ -54,12 +54,12 @@ def analyze_content(prompt: str, model: str | None = None, **chat_options) -> An
             title=data.get("title", ""),
             content=data["content"],
             sentiment_score=data["sentiment_score"],
-            related_companies=data.get("related_companies", []),
+            related_tickers=data.get("related_tickers", []),
             market=data.get("market", "UNKNOWN"),
         )
         logging.info(
             f"🔍 AI 분석 결과: score={result.sentiment_score}, "
-            f"companies={result.related_companies}, market={result.market}"
+            f"tickers={result.related_tickers}, market={result.market}"
         )
         return result
 

@@ -13,8 +13,8 @@ _COMMON_ANALYSIS_INSTRUCTIONS = """
 2. **관련 있는 내용**이라면 다음 두 가지를 분석해서 반드시 **JSON 포맷**으로만 출력해.
     - sentiment_score: 시장 전망 점수 (0: 폭락/공포 ~ 50: 중립 ~ 100: 폭등/탐욕)
     - content: 마크다운 형식의 투자 인사이트 분석 리포트 (3줄 요약, 종목, 대응 전략 포함)
-    - related_companies: 텍스트에서 언급된 주식 종목이 있다면, **기업의 공식 이름(영문)**을 리스트 형태로 추출할 것. (예: ["NVIDIA", "Tesla", "Samsung Electronics"]). 없으면 빈 리스트 [] 를 반환할 것.
-        🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 이름만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
+    - related_tickers: 텍스트에서 언급된 주식 종목이 있다면, 반드시 영문 티커(Ticker) 심볼로 변환하여 리스트 형태로 추출할 것. (예: ["NVDA", "TSLA", "005930.KS"]). 없으면 빈 리스트 [] 를 반환할 것.
+        🚨주의: 반드시 '현재 주식 시장에 상장된 공식 기업'의 티커만 추출해라. Grok, OpenAI, ChatGPT 같은 제품명, AI 모델, 비상장 기업은 절대 포함하지 마라!
     - market: 이 메시지에서 주로 다루는 시장을 분류해라. (미국 주식이면 "US", 한국 주식이면 "KR", 암호화폐면 "CRYPTO", 애매하면 "UNKNOWN")
 
     [content는 반드시 아래 Markdown 형식을 지켜서 출력해]:
@@ -36,7 +36,7 @@ _COMMON_JSON_FORMAT = """
 {{
     "sentiment_score": 75,  // 아닐 경우 -1
     "content": "분석 내용..." // 아닐 경우 ""
-    "related_companies": ["NVIDIA"], // 아닐 경우 []
+    "related_tickers": ["NVDA"], // 아닐 경우 []
     "market": "US"
 }}
 """
@@ -57,7 +57,7 @@ TELEGRAM_ANALYSIS_PROMPT = _COMMON_ANALYSIS_INSTRUCTIONS + """
     "sentiment_score": 75,  
     "content": "분석 내용...", 
     "title": "제목",
-    "related_companies": ["NVIDIA"], // 아닐 경우 []
+    "related_tickers": ["NVDA"], // 아닐 경우 []
     "market": "US"
 }}
 
