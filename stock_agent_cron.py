@@ -10,6 +10,7 @@ from core.prompts import YOUTUBE_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, is_content_processed, save_content_analysis
 from core.notifications import send_analysis_alert
+from core.ticker_resolver import resolve_companies_to_tickers
 
 setup_logging()
 
@@ -68,6 +69,7 @@ class StockYoutubeAgent:
                 continue
 
             video_url = f"https://www.youtube.com/watch?v={video_id}"
+            resolved_tickers = resolve_companies_to_tickers(result.related_companies)
 
             save_content_analysis(
                 external_id=video_id,
@@ -76,12 +78,12 @@ class StockYoutubeAgent:
                 content=result.content,
                 score=result.sentiment_score,
                 source_url=video_url,
-                related_tickers=result.related_tickers,
+                related_tickers=resolved_tickers,
                 platform='youtube',
                 market=result.market,
             )
 
-            send_analysis_alert(name, video_title, result.content, result.sentiment_score, result.related_tickers, result.market)
+            send_analysis_alert(name, video_title, result.content, result.sentiment_score, resolved_tickers, result.market)
             time.sleep(2)
 
         logging.info("에이전트 실행 종료")

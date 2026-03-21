@@ -12,6 +12,7 @@ from core.prompts import TELEGRAM_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, save_content_analysis
 from core.filters import should_save_content
+from core.ticker_resolver import resolve_companies_to_tickers
 
 setup_logging()
 
@@ -101,8 +102,10 @@ while True:
                 logging.info(f"⏭️ [{channel_name}] 분석 결과 없음 - 저장하지 않습니다.")
                 return
 
-            if not should_save_content(result.sentiment_score, result.related_tickers, skip_neutral=True):
+            if not should_save_content(result.sentiment_score, result.related_companies, skip_neutral=True):
                 return
+
+            resolved_tickers = resolve_companies_to_tickers(result.related_companies)
 
             save_content_analysis(
                 external_id=msg_link,
@@ -111,7 +114,7 @@ while True:
                 content=result.content,
                 score=result.sentiment_score,
                 source_url=msg_link,
-                related_tickers=result.related_tickers,
+                related_tickers=resolved_tickers,
                 platform='telegram',
                 market=result.market,
             )

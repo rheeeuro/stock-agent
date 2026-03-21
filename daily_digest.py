@@ -1,15 +1,18 @@
 import logging
 from datetime import datetime
 
+from openai import OpenAI
+
 from core.logging_setup import setup_logging
-from core.config import OLLAMA_MODEL
+from core.config import OPENAI_API_KEY, OPENAI_MODEL
 from core.prompts import DAILY_DIGEST_PROMPT
-from core.ai_service import get_ai_client
 from core.ai_utils import parse_ai_json
 from core.repository import get_recent_analyses, save_daily_summary
 from core.notifications import send_daily_digest_alert
 
 setup_logging()
+
+_openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 def generate_daily_report():
@@ -33,17 +36,16 @@ def generate_daily_report():
 
         prompt = DAILY_DIGEST_PROMPT.format(reports_text=reports_text)
 
-        logging.info(f"🤖 AI 분석 시작 (데이터 {len(rows)}건)...")
-        client = get_ai_client()
+        logging.info(f"🤖 ChatGPT 분석 시작 (모델: {OPENAI_MODEL}, 데이터 {len(rows)}건)...")
 
-        response = client.chat(
-            model=OLLAMA_MODEL,
+        response = _openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
             messages=[{'role': 'user', 'content': prompt}],
-            options={'temperature': 0.1}
+            temperature=0.1,
         )
 
-        raw_content = response['message']['content']
-        logging.info(f"📝 AI 원본 응답:\n{raw_content}")
+        raw_content = response.choices[0].message.content
+        logging.info(f"📝 ChatGPT 원본 응답:\n{raw_content}")
 
         result = parse_ai_json(raw_content)
 
