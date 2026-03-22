@@ -81,7 +81,11 @@ class StockYoutubeAgent:
                 market=result.market,
             )
 
-            send_analysis_alert(name, video_title, result.content, result.sentiment_score, result.related_tickers, result.market)
+            # 30~80점 구간은 텔레그램 알림 생략
+            if result.sentiment_score is not None and 30 <= result.sentiment_score <= 80:
+                logging.info(f"⏭️ [알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
+            else:
+                send_analysis_alert(name, video_title, result.content, result.sentiment_score, result.related_tickers, result.market)
             time.sleep(2)
 
         logging.info("에이전트 실행 종료")

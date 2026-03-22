@@ -72,17 +72,21 @@ def save_daily_summary(buy_stock, buy_ticker, buy_reason, sell_stock, sell_ticke
         conn.commit()
 
 
-def get_recent_analyses(hours: int = 24) -> list[dict]:
-    """최근 N시간 내 수집된 분석 데이터 조회 (일일 요약용)"""
+def get_recent_analyses(hours: int = 24, market: str | None = None) -> list[dict]:
+    """최근 N시간 내 수집된 분석 데이터 조회 (일일 요약용). market='US'|'KR'로 필터 가능"""
     with get_db() as (conn, cursor):
-        cursor.execute(
-            """
+        query = """
             SELECT source_name, title, analysis_content, sentiment_score
             FROM content_analysis
             WHERE created_at >= NOW() - INTERVAL %s HOUR
-            """,
-            (hours,),
-        )
+        """
+        params: list = [hours]
+
+        if market in ("US", "KR"):
+            query += " AND market = %s"
+            params.append(market)
+
+        cursor.execute(query, tuple(params))
         return cursor.fetchall()
 
 

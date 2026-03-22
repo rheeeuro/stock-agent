@@ -12,6 +12,7 @@ from core.prompts import TELEGRAM_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, save_content_analysis
 from core.filters import should_save_content
+from core.notifications import send_analysis_alert
 
 setup_logging()
 
@@ -115,6 +116,12 @@ while True:
                 platform='telegram',
                 market=result.market,
             )
+
+            # 30~80점 구간은 텔레그램 알림 생략
+            if result.sentiment_score is not None and 30 <= result.sentiment_score <= 80:
+                logging.info(f"⏭️ [알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
+            else:
+                send_analysis_alert(channel_name, result.title, result.content, result.sentiment_score, result.related_tickers, result.market)
 
         client.start()
         logging.info("✅ 텔레그램 서버 연결 성공! 메시지 감시를 시작합니다.")
