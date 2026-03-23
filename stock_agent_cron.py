@@ -10,6 +10,7 @@ from core.prompts import YOUTUBE_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, is_content_processed, save_content_analysis
 from core.notifications import send_analysis_alert
+from core.ticker import get_tickers_by_market
 
 setup_logging()
 
@@ -69,6 +70,8 @@ class StockYoutubeAgent:
 
             video_url = f"https://www.youtube.com/watch?v={video_id}"
 
+            tickers = get_tickers_by_market(result.related_companies, result.market) if hasattr(result, 'related_companies') and result.related_companies else []
+
             save_content_analysis(
                 external_id=video_id,
                 source_name=name,
@@ -76,7 +79,7 @@ class StockYoutubeAgent:
                 content=result.content,
                 score=result.sentiment_score,
                 source_url=video_url,
-                related_tickers=result.related_tickers,
+                related_tickers=tickers,
                 platform='youtube',
                 market=result.market,
             )
@@ -85,7 +88,7 @@ class StockYoutubeAgent:
             if result.sentiment_score is not None and 30 <= result.sentiment_score <= 80:
                 logging.info(f"⏭️ [알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
             else:
-                send_analysis_alert(name, video_title, result.content, result.sentiment_score, result.related_tickers, result.market)
+                send_analysis_alert(name, video_title, result.content, result.sentiment_score, tickers, result.market)
             time.sleep(2)
 
         logging.info("에이전트 실행 종료")
