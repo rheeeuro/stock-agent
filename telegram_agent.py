@@ -102,7 +102,7 @@ while True:
                 logging.info(f"⏭️ [{channel_name}] 분석 결과 없음 - 저장하지 않습니다.")
                 return
 
-            if not should_save_content(result.sentiment_score, result.related_tickers, skip_neutral=True):
+            if not should_save_content(result.sentiment_score, result.related_tickers, skip_neutral=True, allow_no_ticker=True):
                 return
 
             save_content_analysis(
