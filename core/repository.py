@@ -114,7 +114,7 @@ def get_contents_paginated(page: int = 1, limit: int = 12, market: str = "ALL") 
             f"""
             SELECT id, external_id, source_name, title,
                    analysis_content, sentiment_score,
-                   platform, market, source_url, created_at
+                   platform, market, source_url, created_at, related_tickers
             FROM content_analysis {where_clause}
             ORDER BY created_at DESC
             LIMIT %s OFFSET %s
@@ -128,6 +128,13 @@ def get_contents_paginated(page: int = 1, limit: int = 12, market: str = "ALL") 
                 row["created_at"] = str(row["created_at"])
             if row["sentiment_score"] is None:
                 row["sentiment_score"] = 50
+            if row.get("related_tickers"):
+                try:
+                    row["related_tickers"] = json.loads(row["related_tickers"])
+                except Exception:
+                    row["related_tickers"] = []
+            else:
+                row["related_tickers"] = []
 
         total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
 

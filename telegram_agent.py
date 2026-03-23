@@ -103,7 +103,11 @@ while True:
                 logging.info(f"⏭️ [{channel_name}] 분석 결과 없음 - 저장하지 않습니다.")
                 return
 
-            tickers = get_tickers_by_market(result.related_companies, result.market) if hasattr(result, 'related_companies') and result.related_companies else []
+            if not hasattr(result, 'related_companies') or not result.related_companies:
+                logging.info(f"⏭️ [{channel_name}] 관련 기업(related_companies) 없음 - 스킵합니다.")
+                return
+
+            tickers = get_tickers_by_market(result.related_companies, result.market)
 
             if not should_save_content(result.sentiment_score, tickers, skip_neutral=True, allow_no_ticker=True):
                 return
