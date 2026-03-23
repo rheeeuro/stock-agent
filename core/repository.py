@@ -218,19 +218,3 @@ def get_contents_by_ticker(ticker: str) -> list[dict]:
         return results
 
 
-def get_stock_name_from_db(ticker: str) -> str:
-    """DB에서 티커의 종목명 조회"""
-    with get_db() as (conn, cursor):
-        cursor.execute(
-            """
-            SELECT buy_stock AS stock_name FROM daily_summary WHERE buy_ticker = %s
-            UNION
-            SELECT sell_stock AS stock_name FROM daily_summary WHERE sell_ticker = %s
-            LIMIT 1
-            """,
-            (ticker, ticker),
-        )
-        result = cursor.fetchone()
-        if result and result["stock_name"]:
-            return result["stock_name"]
-        return ticker

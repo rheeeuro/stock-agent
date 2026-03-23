@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from datetime import date
 from typing import List, Optional
 import yfinance as yf
+from pykrx import stock as pykrx_stock
+import re
 
 from core.repository import (
     get_contents_paginated,
@@ -12,7 +14,6 @@ from core.repository import (
     get_daily_summary_by_date,
     get_daily_summary_list,
     get_contents_by_ticker,
-    get_stock_name_from_db,
 )
 
 app = FastAPI()
@@ -147,8 +148,37 @@ def get_ticker_contents(ticker: str):
 
 @app.get("/api/stock-name/{ticker}")
 def get_stock_name(ticker: str):
-    """DB 기록을 뒤져서 티커의 한글 종목명을 찾아옵니다"""
-    return {"name": get_stock_name_from_db(ticker)}
+    """티커로 종목명을 조회합니다.
+    - 한국 종목(예: 005930.KS, 035420.KQ)은 pykrx로 한글 종목명 우선 조회
+    - 실패하면 yfinance의 shortName/longName/displayName 사용
+    - 전부 실패하면 원래 ticker 반환
+    """
+    original_ticker = ticker
+    ticker = ticker.strip().upper()
+
+    # 1) 한국 종목이면 pykrx로 한글명 우선 조회
+    m = re.match(r"^(\d{6})\.(KS|KQ)$", ticker)
+    if m:
+        code = m.group(1)
+        try:
+            kr_name = pykrx_stock.get_market_ticker_name(code)
+            if kr_name:
+                return {"name": kr_name}
+        except Exception:
+            pass
+
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.get_info()  # stock.info 보다 명시적으로 호출
+        name = (
+            info.get("displayName")
+            or info.get("shortName")
+            or info.get("longName")
+            or original_ticker
+        )
+        return {"name": name}
+    except Exception:
+        return {"name": original_ticker}
 
 
 @app.get("/api/stock-history/{ticker}")

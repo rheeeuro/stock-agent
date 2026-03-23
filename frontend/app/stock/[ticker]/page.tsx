@@ -11,7 +11,7 @@ async function getTickerContents(ticker: string): Promise<ContentAnalysis[]> {
   return apiFetch(`/api/contents/${ticker}`, []);
 }
 
-async function getStockNameFromDB(ticker: string): Promise<string> {
+async function getStockName(ticker: string): Promise<string> {
   const data = await apiFetch<{ name: string }>(`/api/stock-name/${ticker}`, { name: ticker });
   return data.name;
 }
@@ -25,7 +25,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
   const resolvedParams = await Promise.resolve(params);
   const decodedTicker = decodeURIComponent(resolvedParams.ticker).toUpperCase();
   const [stockName, contents, history] = await Promise.all([
-    getStockNameFromDB(decodedTicker),
+    getStockName(decodedTicker),
     getTickerContents(decodedTicker),
     getStockHistory(decodedTicker)
   ]);
