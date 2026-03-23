@@ -68,7 +68,7 @@ class StockYoutubeAgent:
                 logging.warning("⚠️ AI 분석 결과가 없어 저장하지 않음")
                 continue
 
-            if not hasattr(result, 'related_companies') or not result.related_companies:
+            if not result.related_companies:
                 logging.info("⏭️ 관련 기업(related_companies) 없음 - 스킵합니다.")
                 continue
 

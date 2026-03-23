@@ -4,11 +4,10 @@
 import logging
 
 
-def should_save_content(score: int | None, related_tickers: list | None, *, skip_neutral: bool = False, allow_no_ticker: bool = False) -> bool:
+def should_save_content(score: int | None, related_tickers: list[dict] | None, *, skip_neutral: bool = False, allow_no_ticker: bool = False) -> bool:
     """
     분석 결과를 DB에 저장할지 판단.
-    - 관련 티커가 없으면 저장하지 않음 (단, allow_no_ticker가 True이면 제외)
-    - skip_neutral=True일 때 점수가 40~70(중립) 구간이면 저장하지 않음
+    related_tickers: [{"ticker": "AAPL", "name": "Apple"}, ...] 형식
     """
     if not related_tickers and not allow_no_ticker:
         logging.info("⏭️ [스킵] 구체적인 티커(Ticker)가 없어 저장하지 않습니다.")

@@ -60,20 +60,21 @@ def _get_single_ticker(company_name, market='KR'):
 
     return "Not Found"
 
-def get_tickers_by_market(names: list[str], market: str = 'KR') -> list[str]:
+def get_tickers_by_market(names: list[str], market: str = 'KR') -> list[dict]:
     """
     market: 'KR' (한국), 'US' (미국) 등 국가 코드
     names: 한글 또는 영문 기업명 리스트
+    반환: [{"ticker": "AAPL", "name": "Apple"}, ...] 형식
     """
     tickers = []
     if not names:
         return tickers
-        
+
+    seen = set()
     for name in names:
         ticker = _get_single_ticker(name, market)
-        if ticker and ticker != "Not Found":
-            # 중복 방지
-            if ticker not in tickers:
-                tickers.append(ticker)
-                
+        if ticker and ticker != "Not Found" and ticker not in seen:
+            seen.add(ticker)
+            tickers.append({"ticker": ticker, "name": name})
+
     return tickers

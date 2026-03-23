@@ -9,7 +9,7 @@ export interface ContentAnalysis {
   market: 'US' | 'KR' | 'CRYPTO' | "UNKNOWN";
   source_url?: string;    
   created_at: string;
-  related_tickers?: string[];
+  related_tickers?: { ticker: string; name: string }[];
 }
 
 export interface DailySummary {

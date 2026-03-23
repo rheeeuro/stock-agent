@@ -26,10 +26,9 @@ def _send_telegram_message(message: str):
     return len(chat_ids)
 
 
-def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers=None, market=None):
+def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers: list[dict] | None = None, market=None):
     """콘텐츠 분석 결과 텔레그램 전송 (YouTube/Telegram 공통)"""
     try:
-        # 상태 이모지 결정
         if score >= 80:
             status = "🔥 *강력 매수* (탐욕)"
         elif score >= 60:
@@ -41,16 +40,18 @@ def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50
         else:
             status = "😐 *중립* (관망)"
 
-        # 메시지 길이 제한
         short_analysis = analysis[:800] + "..." if len(analysis) > 800 else analysis
 
-        # 마크다운 변환 (AI의 '**' → 텔레그램의 '*')
+        ticker_display = ", ".join(
+            f"{t['name']}({t['ticker']})" for t in (related_tickers or [])
+        )
+
         formatted_analysis = short_analysis.replace("**", "*")
         message = (
             f"🚨 *[{channel}] 분석 완료!*\n"
             f"📊 관점: {score}점 - {status}\n\n"
             f"📺 {title}\n"
-            f"관련 종목 코드: {related_tickers}\n"
+            f"관련 종목: {ticker_display}\n"
             f"시장: {market}\n"
             f"──────────────────\n"
             f"{formatted_analysis}\n\n"

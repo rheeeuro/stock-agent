@@ -82,7 +82,7 @@ function CardBody({ item }: { item: ContentAnalysis }) {
       </CardHeader>
 
       {/* 2. 본문: 제목 + 내용 */}
-      <CardContent className="p-4 pt-2 flex-grow">
+      <CardContent className="px-4 py-2 flex-grow">
 
         <CardTitle className="text-lg leading-tight mb-2 line-clamp-2 text-left">
           {item.title}
@@ -99,9 +99,9 @@ function CardBody({ item }: { item: ContentAnalysis }) {
         <div className="flex flex-wrap gap-1">
           {item.related_tickers && item.related_tickers.length > 0 && (
             <>
-              {item.related_tickers.slice(0, 3).map((ticker) => (
-                <Badge key={ticker} variant="outline" className="text-[10px] px-1.5 py-0 border-slate-300 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
-                  {ticker}
+              {item.related_tickers.slice(0, 3).map((t) => (
+                <Badge key={t.ticker} variant="outline" className="text-[10px] px-1.5 py-0 border-slate-300 dark:border-slate-700 font-normal text-slate-600 dark:text-slate-400">
+                  {t.name}
                 </Badge>
               ))}
               {item.related_tickers.length > 3 && (
@@ -170,10 +170,10 @@ export function ContentCard({ item }: Props) {
           </DialogTitle>
           <DialogDescription className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 items-start w-full">
             <div className="order-2 sm:order-1 flex flex-wrap gap-1 w-full sm:w-auto mt-1 sm:mt-0">
-              {item.related_tickers && item.related_tickers.length > 0 && item.related_tickers.map((ticker) => (
-                <Link href={`/stock/${ticker}`} key={ticker} className="block group/ticker transition-opacity hover:opacity-80">
+              {item.related_tickers && item.related_tickers.length > 0 && item.related_tickers.map((t) => (
+                <Link href={`/stock/${t.ticker}`} key={t.ticker} className="block group/ticker transition-opacity hover:opacity-80">
                   <Badge variant="outline" className="text-xs bg-slate-100 dark:bg-slate-800 border-[1px] border-slate-300 dark:border-slate-600 cursor-pointer">
-                    {ticker}
+                    {t.name}
                   </Badge>
                 </Link>
               ))}
