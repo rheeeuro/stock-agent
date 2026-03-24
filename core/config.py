@@ -30,7 +30,7 @@ TELEGRAM_API_HASH = os.getenv('TELEGRAM_API_HASH')
 
 # AI 모델 설정 (Ollama)
 OLLAMA_HOST = 'http://127.0.0.1:11434'
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'deepseek-r1:8b')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'exaone3.5:7.8b')
 
 # OpenAI 설정 (일간 리포트용)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
