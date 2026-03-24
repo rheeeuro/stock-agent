@@ -44,7 +44,7 @@ def parse_ai_json(raw_content: str) -> dict | None:
     json_str = match.group(0)
 
     try:
-        return json.loads(json_str)
+        return json.loads(json_str, strict=False)
     except json.JSONDecodeError as e:
         logging.error(f"❌ JSON 디코딩 에러: {e}")
         logging.error(f"추출하려던 텍스트: {json_str}")
