@@ -5,6 +5,7 @@ import sys
 import time
 
 from telethon import TelegramClient, events
+from telethon.tl.types import MessageMediaWebPage, WebPage
 
 from core.logging_setup import setup_logging
 from core.config import TELEGRAM_API_ID, TELEGRAM_API_HASH
@@ -77,7 +78,22 @@ while True:
             chat = await event.get_chat()
             channel_name = chat.title if getattr(chat, 'title', None) else "Unknown"
 
-            text = event.message.message
+            text = event.message.message or ""
+
+            # 링크 프리뷰(webpage)가 있으면 제목/설명을 본문에 합침
+            media = event.message.media
+            if isinstance(media, MessageMediaWebPage) and isinstance(media.webpage, WebPage):
+                wp = media.webpage
+                preview_parts = []
+                if wp.title:
+                    preview_parts.append(wp.title)
+                if wp.description:
+                    preview_parts.append(wp.description)
+                if preview_parts:
+                    preview_text = "\n".join(preview_parts)
+                    text = f"{text}\n\n{preview_text}".strip() if text else preview_text
+                    logging.info(f"🔗 링크 프리뷰 텍스트 추출 완료 ({len(preview_text)}자)")
+
             if not text:
                 return
 
