@@ -9,6 +9,7 @@ from core.config import OLLAMA_MODEL
 from core.prompts import YOUTUBE_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, is_content_processed, save_content_analysis
+from core.filters import validate_analysis
 from core.notifications import send_analysis_alert
 from core.ticker import get_tickers_by_market
 
@@ -70,6 +71,11 @@ class StockYoutubeAgent:
 
             if not result.related_companies:
                 logging.info("⏭️ 관련 기업(related_companies) 없음 - 스킵합니다.")
+                continue
+
+            analysis_text = f"{video_title}\n{script_text}"
+            if not validate_analysis(analysis_text, result.related_companies, video_title):
+                logging.warning("⏭️ 환각 감지 - 저장하지 않습니다.")
                 continue
 
             video_url = f"https://www.youtube.com/watch?v={video_id}"

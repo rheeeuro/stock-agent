@@ -12,7 +12,7 @@ from core.config import TELEGRAM_API_ID, TELEGRAM_API_HASH
 from core.prompts import TELEGRAM_ANALYSIS_PROMPT
 from core.ai_service import analyze_content
 from core.repository import get_active_sources, save_content_analysis
-from core.filters import should_save_content
+from core.filters import should_save_content, validate_analysis
 from core.notifications import send_analysis_alert
 from core.ticker import get_tickers_by_market
 
@@ -121,6 +121,10 @@ while True:
 
             if not result.related_companies:
                 logging.info(f"⏭️ [{channel_name}] 관련 기업(related_companies) 없음 - 스킵합니다.")
+                return
+
+            if not validate_analysis(text, result.related_companies, result.title):
+                logging.warning(f"⏭️ [{channel_name}] 환각 감지 - 저장하지 않습니다.")
                 return
 
             tickers = get_tickers_by_market(result.related_companies, result.market)

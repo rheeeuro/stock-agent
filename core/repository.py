@@ -76,7 +76,7 @@ def get_recent_analyses(hours: int = 24, market: str | None = None) -> list[dict
     """최근 N시간 내 수집된 분석 데이터 조회 (일일 요약용). market='US'|'KR'로 필터 가능"""
     with get_db() as (conn, cursor):
         query = """
-            SELECT source_name, title, analysis_content, sentiment_score
+            SELECT source_name, title, analysis_content, sentiment_score, related_tickers
             FROM content_analysis
             WHERE created_at >= NOW() - INTERVAL %s HOUR
         """

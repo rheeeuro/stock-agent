@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 from datetime import datetime
 
@@ -22,7 +23,7 @@ def generate_daily_report(market: str | None = None):
     try:
         market_label = MARKET_LABELS.get(market, "전체")
         logging.info(f"🔍 오늘의 데이터 조회 중... (대상: {market_label})")
-        rows = get_recent_analyses(hours=24, market=market)
+        rows = get_recent_analyses(hours=15, market=market)
 
         if not rows:
             logging.info(f"📭 오늘 수집된 {market_label} 데이터가 없습니다. (분석 건너뜀)")
@@ -30,10 +31,20 @@ def generate_daily_report(market: str | None = None):
 
         reports_text = ""
         for idx, row in enumerate(rows):
+            raw_tickers = row.get('related_tickers', '[]')
+            if isinstance(raw_tickers, str):
+                try:
+                    raw_tickers = json.loads(raw_tickers)
+                except Exception:
+                    raw_tickers = []
+            ticker_str = ", ".join(
+                f"{t['name']}({t['ticker']})" for t in raw_tickers if isinstance(t, dict)
+            ) if raw_tickers else "없음"
             reports_text += f"""
         [분석 {idx+1}]
         - 출처: {row['source_name']} (점수: {row['sentiment_score']}점)
         - 제목: {row['title']}
+        - 관련 티커: {ticker_str}
         - 내용 요약: {row['analysis_content'][:300]}...
         --------------------------------
         """

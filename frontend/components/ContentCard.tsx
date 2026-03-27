@@ -88,7 +88,7 @@ function CardBody({ item }: { item: ContentAnalysis }) {
           {item.title}
         </CardTitle>
         
-        <CardDescription className="line-clamp-4 text-sm text-slate-600 dark:text-slate-400 text-left">
+        <CardDescription className="line-clamp-4 text-sm text-slate-600 dark:text-slate-400 text-left mb-2">
           {/* 마크다운 기호 대충 제거해서 보여주기 */}
           {item.analysis_content.replace(/[#*-]/g, '')}
         </CardDescription>
@@ -127,7 +127,7 @@ export function ContentCard({ item }: Props) {
   useEffect(() => setMounted(true), []);
 
   const card = (
-    <Card className="flex flex-col h-full overflow-hidden hover:shadow-lg transition-shadow border-slate-200 dark:border-slate-800 cursor-pointer group">
+    <Card className="flex flex-col gap-2 h-full overflow-hidden hover:shadow-lg transition-shadow border-slate-200 dark:border-slate-800 cursor-pointer group">
       <CardBody item={item} />
     </Card>
   );
