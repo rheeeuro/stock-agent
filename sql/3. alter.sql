@@ -43,3 +43,5 @@ ALTER TABLE daily_summary ADD COLUMN sell_ticker VARCHAR(20) AFTER sell_stock;
 ALTER TABLE content_analysis ADD COLUMN related_tickers VARCHAR(255) DEFAULT NULL;
 
 ALTER TABLE content_analysis ADD COLUMN market VARCHAR(10) DEFAULT 'UNKNOWN';
+
+ALTER TABLE ticker_dictionary ADD COLUMN market VARCHAR(10) DEFAULT 'KR' AFTER ticker_symbol;

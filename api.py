@@ -14,6 +14,10 @@ from core.repository import (
     get_daily_summary_by_date,
     get_daily_summary_list,
     get_contents_by_ticker,
+    get_ticker_dictionary,
+    update_ticker,
+    delete_ticker,
+    lookup_name_by_ticker,
 )
 
 app = FastAPI()
@@ -149,14 +153,20 @@ def get_ticker_contents(ticker: str):
 @app.get("/api/stock-name/{ticker}")
 def get_stock_name(ticker: str):
     """티커로 종목명을 조회합니다.
-    - 한국 종목(예: 005930.KS, 035420.KQ)은 pykrx로 한글 종목명 우선 조회
+    - ticker_dictionary에서 우선 조회
+    - 한국 종목(예: 005930.KS, 035420.KQ)은 pykrx로 한글 종목명 조회
     - 실패하면 yfinance의 shortName/longName/displayName 사용
     - 전부 실패하면 원래 ticker 반환
     """
     original_ticker = ticker
     ticker = ticker.strip().upper()
 
-    # 1) 한국 종목이면 pykrx로 한글명 우선 조회
+    # 1) ticker_dictionary에서 우선 조회
+    dict_name = lookup_name_by_ticker(ticker)
+    if dict_name:
+        return {"name": dict_name}
+
+    # 2) 한국 종목이면 pykrx로 한글명 조회
     m = re.match(r"^(\d{6})\.(KS|KQ)$", ticker)
     if m:
         code = m.group(1)
@@ -167,9 +177,10 @@ def get_stock_name(ticker: str):
         except Exception:
             pass
 
+    # 3) yfinance 폴백
     try:
         stock = yf.Ticker(ticker)
-        info = stock.get_info()  # stock.info 보다 명시적으로 호출
+        info = stock.get_info()
         name = (
             info.get("displayName")
             or info.get("shortName")
@@ -198,3 +209,41 @@ def get_stock_history(ticker: str):
         return result
     except Exception as e:
         return []
+
+
+# --- Ticker Dictionary ---
+
+class TickerDictionaryUpdate(BaseModel):
+    company_name: str
+    ticker_symbol: str
+    market: str = "KR"  # 'KR', 'US'
+    status: str  # 'PENDING', 'ACTIVE', 'INACTIVE'
+
+
+@app.get("/api/ticker-dictionary")
+def get_ticker_dict(status: Optional[str] = Query(None, description="상태 필터 (PENDING, ACTIVE, INACTIVE)")):
+    """ticker dictionary 목록 조회"""
+    try:
+        return get_ticker_dictionary(status)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/ticker-dictionary/{ticker_id}")
+def update_ticker_dict(ticker_id: int, body: TickerDictionaryUpdate):
+    """ticker dictionary 항목 수정 (이름, 심볼, 상태 변경)"""
+    if body.status not in ("PENDING", "ACTIVE", "INACTIVE"):
+        raise HTTPException(status_code=400, detail="status는 PENDING, ACTIVE, INACTIVE 중 하나여야 합니다.")
+    success = update_ticker(ticker_id, body.company_name, body.ticker_symbol, body.market, body.status)
+    if not success:
+        raise HTTPException(status_code=404, detail="해당 항목을 찾을 수 없습니다.")
+    return {"success": True}
+
+
+@app.delete("/api/ticker-dictionary/{ticker_id}")
+def delete_ticker_dict(ticker_id: int):
+    """ticker dictionary 항목 삭제"""
+    success = delete_ticker(ticker_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="해당 항목을 찾을 수 없습니다.")
+    return {"success": True}

@@ -36,3 +36,13 @@ export interface PaginatedResponse<T> {
     has_prev_page: boolean;
   } | null;
 }
+
+export interface TickerDictionary {
+  id: number;
+  company_name: string;
+  ticker_symbol: string;
+  market: 'KR' | 'US';
+  status: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+  updated_at: string;
+}

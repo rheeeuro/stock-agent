@@ -1,15 +1,18 @@
 import re
+import logging
 import warnings
 import yfinance as yf
 from ddgs import DDGS
 
+from core.repository import lookup_ticker, save_ticker
+
 warnings.filterwarnings("ignore")
 
-def _get_single_ticker(company_name, market='KR'):
+def _search_ticker_online(company_name, market='KR'):
+    """기존 DuckDuckGo + yfinance 검색 로직 (dictionary에 없을 때 폴백)"""
     market = market.upper()
     
     with DDGS() as ddgs:
-        # 1. 시장별 맞춤형 검색 쿼리 생성
         if market == 'KR':
             query = f"{company_name} 코스피 코스닥 종목코드"
         else:
@@ -19,25 +22,20 @@ def _get_single_ticker(company_name, market='KR'):
             results = list(ddgs.text(query, max_results=8))
             combined_text = " ".join([f"{res.get('title')} {res.get('body')} {res.get('href')}" for res in results]).upper()
             
-            # 2. 시장별 티커 추출 로직 분기
             if market == 'KR':
-                # 한국: 숫자 6자리 패턴 추출
                 codes = re.findall(r'\b(\d{6})\b', combined_text)
                 if codes:
-                    for code in list(dict.fromkeys(codes)): # 중복 제거
+                    for code in list(dict.fromkeys(codes)):
                         for suffix in ['.KS', '.KQ']:
                             ticker = f"{code}{suffix}"
-                            # 유효성 검사 (데이터가 있는지 확인)
                             if len(yf.Ticker(ticker).history(period="1d")) > 0:
                                 return ticker
                                 
             elif market == 'US':
-                # 미국: URL 패턴(/QUOTE/SYMBOL) 또는 괄호 안의 대문자 추출
                 url_match = re.findall(r'FINANCE\.YAHOO\.COM/QUOTE/([A-Z]{1,5})', combined_text)
                 if url_match:
                     return url_match[0]
                 
-                # 괄호 안의 1~5자 대문자 (예: (AAPL), (TSLA))
                 bracket_match = re.findall(r'\(?([A-Z]{1,5})\)?', combined_text)
                 blacklist = {'HTTPS', 'HTTP', 'WWW', 'STOCK', 'NYSE', 'NASDAQ', 'USD'}
                 for m in bracket_match:
@@ -46,7 +44,6 @@ def _get_single_ticker(company_name, market='KR'):
         except Exception:
             pass
 
-    # 3. 최후의 수단: yfinance Search API (시장 필터 적용)
     try:
         search = yf.Search(company_name, max_results=10).quotes
         for q in search:
@@ -59,6 +56,23 @@ def _get_single_ticker(company_name, market='KR'):
         pass
 
     return "Not Found"
+
+
+def _get_single_ticker(company_name, market='KR'):
+    """dictionary 조회 → 없으면 온라인 검색 → 결과를 dictionary에 PENDING으로 저장"""
+    cached = lookup_ticker(company_name)
+    if cached and cached["status"] != "INACTIVE":
+        logging.info(f"📖 Dictionary 캐시 히트: {company_name} → {cached['ticker_symbol']}")
+        return cached["ticker_symbol"]
+
+    ticker = _search_ticker_online(company_name, market)
+
+    if ticker and ticker != "Not Found":
+        save_ticker(company_name, ticker, market=market, status="PENDING")
+        logging.info(f"📝 Dictionary에 새 티커 저장 (임시): {company_name} → {ticker} [{market}]")
+
+    return ticker
+
 
 def get_tickers_by_market(names: list[str], market: str = 'KR') -> list[dict]:
     """
