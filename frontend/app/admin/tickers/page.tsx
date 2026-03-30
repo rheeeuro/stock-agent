@@ -23,9 +23,10 @@ import {
   BookOpen,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 
 type StatusFilter = "ALL" | "PENDING" | "ACTIVE" | "INACTIVE";
+type MarketFilter = "ALL" | "KR" | "US";
 
 const STATUS_CONFIG: Record<
   string,
@@ -52,6 +53,7 @@ export default function TickerDictionaryPage() {
   const [tickers, setTickers] = useState<TickerDictionary[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [marketFilter, setMarketFilter] = useState<MarketFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [editItem, setEditItem] = useState<TickerDictionary | null>(null);
@@ -69,9 +71,11 @@ export default function TickerDictionaryPage() {
   const fetchTickers = useCallback(async () => {
     setLoading(true);
     try {
-      const params =
-        statusFilter !== "ALL" ? `?status=${statusFilter}` : "";
-      const res = await fetch(`${API_BASE}/api/ticker-dictionary${params}`);
+      const qp = new URLSearchParams();
+      if (statusFilter !== "ALL") qp.set("status", statusFilter);
+      if (marketFilter !== "ALL") qp.set("market", marketFilter);
+      const params = qp.toString() ? `?${qp.toString()}` : "";
+      const res = await fetch(`/api/ticker-dictionary${params}`);
       if (res.ok) {
         setTickers(await res.json());
       }
@@ -80,7 +84,7 @@ export default function TickerDictionaryPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, marketFilter]);
 
   useEffect(() => {
     fetchTickers();
@@ -100,7 +104,7 @@ export default function TickerDictionaryPage() {
     if (!editItem) return;
     try {
       const res = await fetch(
-        `${API_BASE}/api/ticker-dictionary/${editItem.id}`,
+        `/api/ticker-dictionary/${editItem.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -119,7 +123,7 @@ export default function TickerDictionaryPage() {
   const handleRegister = async (item: TickerDictionary) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/ticker-dictionary/${item.id}`,
+        `/api/ticker-dictionary/${item.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -141,7 +145,7 @@ export default function TickerDictionaryPage() {
     if (!deleteTarget) return;
     try {
       const res = await fetch(
-        `${API_BASE}/api/ticker-dictionary/${deleteTarget.id}`,
+        `/api/ticker-dictionary/${deleteTarget.id}`,
         { method: "DELETE" }
       );
       if (res.ok) {
@@ -194,31 +198,51 @@ export default function TickerDictionaryPage() {
 
         {/* 필터 + 검색 */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-2 flex-wrap">
-            {(["ALL", "PENDING", "ACTIVE", "INACTIVE"] as StatusFilter[]).map(
-              (s) => (
+          <div className="flex gap-3 flex-wrap items-center">
+            <div className="flex gap-2 flex-wrap">
+              {(["ALL", "PENDING", "ACTIVE", "INACTIVE"] as StatusFilter[]).map(
+                (s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                      statusFilter === s
+                        ? s === "ALL"
+                          ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md"
+                          : s === "PENDING"
+                            ? "bg-amber-500 text-white shadow-md"
+                            : s === "ACTIVE"
+                              ? "bg-emerald-500 text-white shadow-md"
+                              : "bg-slate-500 text-white shadow-md"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
+                    }`}
+                  >
+                    {s === "ALL"
+                      ? "전체"
+                      : STATUS_CONFIG[s].label}
+                    {statusFilter === s && ` (${counts[s]})`}
+                  </button>
+                )
+              )}
+            </div>
+
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 hidden sm:block" />
+
+            <div className="flex gap-2">
+              {(["ALL", "KR", "US"] as MarketFilter[]).map((m) => (
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                    statusFilter === s
-                      ? s === "ALL"
-                        ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md"
-                        : s === "PENDING"
-                          ? "bg-amber-500 text-white shadow-md"
-                          : s === "ACTIVE"
-                            ? "bg-emerald-500 text-white shadow-md"
-                            : "bg-slate-500 text-white shadow-md"
+                  key={m}
+                  onClick={() => setMarketFilter(m)}
+                  className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${
+                    marketFilter === m
+                      ? "bg-indigo-500 text-white shadow-md"
                       : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
                   }`}
                 >
-                  {s === "ALL"
-                    ? "전체"
-                    : STATUS_CONFIG[s].label}{" "}
-                  ({counts[s]})
+                  {m === "ALL" ? "전체 시장" : m === "KR" ? "🇰🇷 한국" : "🇺🇸 미국"}
                 </button>
-              )
-            )}
+              ))}
+            </div>
           </div>
 
           <div className="relative w-full sm:w-64">

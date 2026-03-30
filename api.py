@@ -221,10 +221,13 @@ class TickerDictionaryUpdate(BaseModel):
 
 
 @app.get("/api/ticker-dictionary")
-def get_ticker_dict(status: Optional[str] = Query(None, description="상태 필터 (PENDING, ACTIVE, INACTIVE)")):
+def get_ticker_dict(
+    status: Optional[str] = Query(None, description="상태 필터 (PENDING, ACTIVE, INACTIVE)"),
+    market: Optional[str] = Query(None, description="시장 필터 (KR, US)"),
+):
     """ticker dictionary 목록 조회"""
     try:
-        return get_ticker_dictionary(status)
+        return get_ticker_dictionary(status, market)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

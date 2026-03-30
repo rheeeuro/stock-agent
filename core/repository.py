@@ -265,18 +265,22 @@ def save_ticker(company_name: str, ticker_symbol: str, market: str = "KR", statu
         conn.commit()
 
 
-def get_ticker_dictionary(status: str | None = None) -> list[dict]:
-    """ticker_dictionary 전체 조회. status 필터 가능"""
+def get_ticker_dictionary(status: str | None = None, market: str | None = None) -> list[dict]:
+    """ticker_dictionary 전체 조회. status, market 필터 가능"""
     with get_db() as (conn, cursor):
+        conditions: list[str] = []
+        params: list[str] = []
         if status:
-            cursor.execute(
-                "SELECT * FROM ticker_dictionary WHERE status = %s ORDER BY updated_at DESC",
-                (status,),
-            )
-        else:
-            cursor.execute(
-                "SELECT * FROM ticker_dictionary ORDER BY FIELD(status, 'PENDING', 'ACTIVE', 'INACTIVE'), updated_at DESC"
-            )
+            conditions.append("status = %s")
+            params.append(status)
+        if market:
+            conditions.append("market = %s")
+            params.append(market.upper())
+
+        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        order = "updated_at DESC" if conditions else "FIELD(status, 'PENDING', 'ACTIVE', 'INACTIVE'), updated_at DESC"
+        cursor.execute(f"SELECT * FROM ticker_dictionary{where} ORDER BY {order}", params)
+
         results = cursor.fetchall()
         for row in results:
             for col in ("created_at", "updated_at"):
