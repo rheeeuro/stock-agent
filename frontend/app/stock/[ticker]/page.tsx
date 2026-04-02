@@ -30,8 +30,8 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
     getStockHistory(decodedTicker)
   ]);
 
-  // DB에서 찾은 이름이 영문 티커와 다르면 "엔비디아(NVDA)" 형태로 조합
-  const displayTitle = stockName !== decodedTicker ? `${stockName}(${decodedTicker})` : decodedTicker;
+  // DB에서 찾은 이름이 영문 티커와 다르면 기업명과 티커를 분리 표시
+  const hasName = stockName !== decodedTicker;
 
   return (
     <main className="min-h-screen bg-slate-50 p-8 dark:bg-slate-950">
@@ -43,8 +43,9 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
             <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </Link>
           <div>
-            <h1 className="text-3xl font-bold flex items-center text-slate-900 dark:text-slate-100 gap-4">
-              {displayTitle} 집중 분석
+            <h1 className="text-3xl font-bold flex items-baseline text-slate-900 dark:text-slate-100 gap-4">
+              {stockName} 집중 분석
+              {hasName && <span className="text-lg font-medium text-slate-400 dark:text-slate-500">{decodedTicker}</span>}
               <StockPriceBadge ticker={decodedTicker} />
             </h1>
             <p className="text-slate-500 mt-1">AI가 수집한 최근 관련 뉴스 및 유튜브 감성 분석</p>

@@ -129,7 +129,7 @@ while True:
 
             tickers = get_tickers_by_market(result.related_companies, result.market)
 
-            if not should_save_content(result.sentiment_score, tickers, skip_neutral=True, allow_no_ticker=True):
+            if not should_save_content(result.sentiment_score, tickers, skip_neutral=True, allow_no_ticker=False):
                 return
 
             save_content_analysis(

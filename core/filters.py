@@ -16,8 +16,8 @@ def should_save_content(score: int | None, related_tickers: list[dict] | None, *
         logging.info("⏭️ [스킵] 구체적인 티커(Ticker)가 없어 저장하지 않습니다.")
         return False
 
-    if skip_neutral and score is not None and 40 <= score <= 70:
-        logging.info(f"⏭️ [스킵] 점수가 {score}점(40~70 구간)이라 저장하지 않습니다.")
+    if skip_neutral and score is not None and 40 <= score <= 60:
+        logging.info(f"⏭️ [스킵] 점수가 {score}점(40~60 구간)이라 저장하지 않습니다.")
         return False
 
     return True
@@ -48,24 +48,5 @@ def validate_analysis(original_text: str, related_companies: list[str], title: s
                 f"원문에 존재하지 않습니다. 분석 결과를 폐기합니다."
             )
             return False
-
-    if title:
-        # title에서 명사급 키워드(2글자 이상 한글/영문 단어) 추출 후 원문 존재 여부 확인
-        title_keywords = re.findall(r'[가-힣a-zA-Z]{2,}', title)
-        stopwords = {
-            '전망', '분석', '상승', '하락', '급등', '급락', '호재', '악재',
-            '기대감', '우려', '영향', '관련', '시장', '부문', '발표', '실적',
-            '주요', '기업', '종목', '투자', '매수', '매도', '긍정적', '부정적',
-        }
-        meaningful_keywords = [kw for kw in title_keywords if kw not in stopwords]
-
-        if meaningful_keywords:
-            title_match = any(kw in text_clean for kw in meaningful_keywords)
-            if not title_match:
-                logging.warning(
-                    f"🚨 [환각 감지] AI 제목 '{title}'의 핵심 키워드 {meaningful_keywords}가 "
-                    f"원문에 존재하지 않습니다. 분석 결과를 폐기합니다."
-                )
-                return False
 
     return True

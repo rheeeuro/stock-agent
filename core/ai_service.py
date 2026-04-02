@@ -9,6 +9,9 @@ from core.config import OLLAMA_HOST, OLLAMA_MODEL
 from core.ai_utils import parse_ai_json
 
 
+_VALID_MARKETS = {"US", "KR", "CRYPTO", "UNKNOWN"}
+
+
 @dataclass
 class AnalysisResult:
     """AI 분석 결과 통합 데이터 클래스"""
@@ -55,8 +58,10 @@ def analyze_content(prompt: str, model: str | None = None, **chat_options) -> An
             content=data["content"],
             sentiment_score=data["sentiment_score"],
             related_companies=data.get("related_companies", []),
-            market=data.get("market", "UNKNOWN"),
+            market=data.get("market", "UNKNOWN") if data.get("market") in _VALID_MARKETS else "UNKNOWN",
         )
+        if data.get("market") not in _VALID_MARKETS:
+            logging.warning(f"⚠️ 허용되지 않은 market 값 '{data.get('market')}' → 'UNKNOWN'으로 대체")
         logging.info(
             f"🔍 AI 분석 결과: score={result.sentiment_score}, "
             f"companies={result.related_companies}, market={result.market}"
