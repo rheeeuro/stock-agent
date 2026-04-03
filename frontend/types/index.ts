@@ -15,6 +15,7 @@ export interface ContentAnalysis {
 export interface DailySummary {
   id: number;
   report_date: string;
+  market?: 'US' | 'KR' | null;
   buy_stock: string;
   buy_ticker?: string;
   buy_reason: string;
@@ -35,6 +36,20 @@ export interface PaginatedResponse<T> {
     has_next_page: boolean;
     has_prev_page: boolean;
   } | null;
+}
+
+export interface MarketIndex {
+  symbol: string;
+  name: string;
+  price: number | null;
+  change: number | null;
+  change_percent: number | null;
+}
+
+export interface MarketIndices {
+  US: MarketIndex[];
+  KR: MarketIndex[];
+  COMMODITIES: MarketIndex[];
 }
 
 export interface TickerDictionary {

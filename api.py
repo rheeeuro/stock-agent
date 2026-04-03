@@ -3,9 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import date
 from typing import List, Optional
+import os
 import yfinance as yf
 from pykrx import stock as pykrx_stock
 import re
+import math
+from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from core.repository import (
     get_contents_paginated,
@@ -36,6 +42,22 @@ app.add_middleware(
 )
 
 
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/admin/login")
+def admin_login(req: LoginRequest):
+    if not ADMIN_PASSWORD:
+        raise HTTPException(status_code=500, detail="Admin password not configured")
+    if req.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid password")
+    return {"ok": True}
+
+
 class ContentAnalysis(BaseModel):
     id: int
     external_id: str
@@ -51,6 +73,7 @@ class ContentAnalysis(BaseModel):
 class DailySummary(BaseModel):
     id: int
     report_date: str
+    market: Optional[str] = None
     buy_stock: str
     buy_ticker: Optional[str] = None
     buy_reason: str
@@ -86,9 +109,9 @@ def get_channels():
 
 
 @app.get("/api/daily-summary", response_model=Optional[DailySummary])
-def get_daily_summary():
+def get_daily_summary(market: str = Query("ALL", description="시장 필터 (ALL, US, KR)")):
     try:
-        return get_latest_daily_summary()
+        return get_latest_daily_summary(market=market)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -103,10 +126,10 @@ def get_daily_summary_date(report_date: str):
 
 
 @app.get("/api/daily-summary-list", response_model=List[DailySummary])
-def get_daily_summaries(limit: int = 7):
+def get_daily_summaries(limit: int = 7, market: str = Query("ALL", description="시장 필터 (ALL, US, KR)")):
     """최근 N일치의 일일 요약 리포트 목록 조회"""
     try:
-        return get_daily_summary_list(limit)
+        return get_daily_summary_list(limit, market=market)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -121,21 +144,27 @@ def get_stock_price(ticker: str):
         if hist.empty or len(hist) < 1:
             return {"error": "데이터를 찾을 수 없습니다."}
 
-        current_price = hist['Close'].iloc[-1]
+        current_price = _safe_float(hist['Close'].iloc[-1])
+        if current_price is None:
+            return {"error": "데이터를 찾을 수 없습니다."}
 
         if len(hist) >= 2:
-            prev_close = hist['Close'].iloc[-2]
-            change = current_price - prev_close
-            change_percent = (change / prev_close) * 100
+            prev_close = _safe_float(hist['Close'].iloc[-2])
+            if prev_close and prev_close != 0:
+                change = round(current_price - prev_close, 2)
+                change_percent = round((change / prev_close) * 100, 2)
+            else:
+                change = 0.0
+                change_percent = 0.0
         else:
             change = 0.0
             change_percent = 0.0
 
         return {
             "ticker": ticker,
-            "price": round(current_price, 2),
-            "change": round(change, 2),
-            "change_percent": round(change_percent, 2)
+            "price": current_price,
+            "change": change,
+            "change_percent": change_percent
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -209,6 +238,116 @@ def get_stock_history(ticker: str):
         return result
     except Exception as e:
         return []
+
+
+# --- Market Overview ---
+
+MARKET_INDICES = {
+    "US": [
+        {"symbol": "^GSPC", "name": "S&P 500"},
+        {"symbol": "^IXIC", "name": "NASDAQ"},
+        {"symbol": "^DJI", "name": "다우존스"},
+        {"symbol": "^VIX", "name": "VIX (공포지수)"},
+        {"symbol": "DX-Y.NYB", "name": "달러 인덱스"},
+    ],
+    "KR": [
+        {"symbol": "^KS11", "name": "코스피"},
+        {"symbol": "^KQ11", "name": "코스닥"},
+        {"symbol": "USDKRW=X", "name": "원/달러 환율"},
+    ],
+    "COMMODITIES": [
+        {"symbol": "GC=F", "name": "금"},
+        {"symbol": "CL=F", "name": "WTI 원유"},
+        {"symbol": "BTC-USD", "name": "비트코인"},
+    ],
+}
+
+
+def _safe_float(val) -> float | None:
+    """nan/inf를 None으로 변환하여 JSON 직렬화 안전하게 처리"""
+    if val is None:
+        return None
+    f = float(val)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return round(f, 2)
+
+
+def _fetch_index(item: dict) -> dict:
+    """하나의 지수 데이터를 yfinance에서 조회"""
+    empty = {**item, "price": None, "change": None, "change_percent": None}
+    try:
+        stock = yf.Ticker(item["symbol"])
+        hist = stock.history(period="5d")
+        if hist.empty:
+            return empty
+        current = _safe_float(hist["Close"].iloc[-1])
+        if current is None:
+            return empty
+        prev = _safe_float(hist["Close"].iloc[-2]) if len(hist) >= 2 else current
+        if prev is None or prev == 0:
+            return {**item, "price": current, "change": None, "change_percent": None}
+        change = round(current - prev, 2)
+        change_pct = round((change / prev) * 100, 2)
+        return {
+            **item,
+            "price": current,
+            "change": change,
+            "change_percent": change_pct,
+        }
+    except Exception:
+        return empty
+
+
+@app.get("/api/market-indices")
+def get_market_indices():
+    """주요 시장 지수 일괄 조회 (S&P500, NASDAQ, KOSPI 등)"""
+    all_items = []
+    for items in MARKET_INDICES.values():
+        all_items.extend(items)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(_fetch_index, all_items))
+
+    grouped = {}
+    idx = 0
+    for category, items in MARKET_INDICES.items():
+        grouped[category] = results[idx : idx + len(items)]
+        idx += len(items)
+
+    return grouped
+
+
+@app.get("/api/market-leaders/{market}")
+def get_market_leaders(market: str):
+    """시장별 주도주 (거래량/변동폭 상위 종목) 조회"""
+    if market == "US":
+        leaders = [
+            {"symbol": "AAPL", "name": "Apple"},
+            {"symbol": "NVDA", "name": "NVIDIA"},
+            {"symbol": "MSFT", "name": "Microsoft"},
+            {"symbol": "GOOGL", "name": "Alphabet"},
+            {"symbol": "AMZN", "name": "Amazon"},
+            {"symbol": "TSLA", "name": "Tesla"},
+            {"symbol": "META", "name": "Meta"},
+        ]
+    elif market == "KR":
+        leaders = [
+            {"symbol": "005930.KS", "name": "삼성전자"},
+            {"symbol": "000660.KS", "name": "SK하이닉스"},
+            {"symbol": "373220.KS", "name": "LG에너지솔루션"},
+            {"symbol": "207940.KS", "name": "삼성바이오로직스"},
+            {"symbol": "005380.KS", "name": "현대자동차"},
+            {"symbol": "000270.KS", "name": "기아"},
+            {"symbol": "035420.KS", "name": "NAVER"},
+        ]
+    else:
+        return []
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(_fetch_index, leaders))
+
+    return results
 
 
 # --- Ticker Dictionary ---

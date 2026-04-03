@@ -77,6 +77,7 @@ def generate_daily_report(market: str | None = None):
             sell_stock=result.get('sell_stock'),
             sell_ticker=result.get('sell_ticker', ''),
             sell_reason=result.get('sell_reason'),
+            market=market,
         )
 
         logging.info("✅ 리포트 생성 완료!")

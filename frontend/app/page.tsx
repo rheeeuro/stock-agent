@@ -1,10 +1,10 @@
 import { ContentAnalysis, DailySummary, PaginatedResponse } from "@/types";
 import { ContentCard } from "@/components/ContentCard";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
-import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Calendar, ChevronLeft, ChevronRight, Globe } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 async function getContents(page: number, limit: number, market: string): Promise<PaginatedResponse<ContentAnalysis>> {
   return apiFetch(`/api/contents?page=${page}&limit=${limit}&market=${market}`, {
@@ -12,12 +12,12 @@ async function getContents(page: number, limit: number, market: string): Promise
   });
 }
 
-async function getDailySummary(): Promise<DailySummary | null> {
-  return apiFetch("/api/daily-summary", null);
+async function getDailySummary(market: string): Promise<DailySummary | null> {
+  return apiFetch(`/api/daily-summary?market=${market}`, null);
 }
 
-async function getDailySummaryList(): Promise<DailySummary[]> {
-  return apiFetch("/api/daily-summary-list?limit=5", []);
+async function getDailySummaryList(market: string): Promise<DailySummary[]> {
+  return apiFetch(`/api/daily-summary-list?limit=5&market=${market}`, []);
 }
 
 export const dynamic = 'force-dynamic';
@@ -33,8 +33,8 @@ export default async function Home(props: {
 
   const [contentsRes, summary, summaryList] = await Promise.all([
     getContents(currentPage, limit, currentMarket),
-    getDailySummary(),
-    getDailySummaryList()
+    getDailySummary(currentMarket),
+    getDailySummaryList(currentMarket)
   ]);
 
   // 백엔드 응답에서 실제 데이터 배열과 페이지네이션 정보를 분리
@@ -48,13 +48,16 @@ export default async function Home(props: {
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              📈 주식 AI 에이전트
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              콘텐츠 분석
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 mt-1 text-sm">
               YouTube 및 Telegram 데이터를 실시간 분석합니다.
             </p>
           </div>
+          <Badge variant="outline" className="px-3 py-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">
+            Weekly: {pagination?.total_items || 0}
+          </Badge>
         </div>
 
         {/* 요약 카드 */}
@@ -75,7 +78,16 @@ export default async function Home(props: {
                 <Link key={report.id} href={`/report/${report.report_date}`}>
                   <div className="group p-4 border border-slate-100 dark:border-slate-800 rounded-lg hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer bg-slate-50 dark:bg-slate-950 flex flex-col h-full relative overflow-hidden">
                     <span className="text-xs text-slate-400 font-medium mb-1 flex items-center justify-between">
-                      {report.report_date}
+                      <span className="flex items-center gap-1">
+                        {report.report_date}
+                        {report.market && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                            report.market === 'US' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+                          }`}>
+                            {report.market}
+                          </span>
+                        )}
+                      </span>
                       <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500" />
                     </span>
                     <span className="font-bold text-slate-700 dark:text-slate-200 text-sm line-clamp-1">
@@ -87,46 +99,6 @@ export default async function Home(props: {
             </div>
           </div>
         )}
-
-        {/* 🚀 시장 필터 탭 (Tabs) */}
-        <div className="flex items-start sm:items-center justify-between mb-6 pt-4 border-t border-slate-200 dark:border-slate-800 gap-4">
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Link 
-              href="/?market=ALL&page=1"
-              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                currentMarket === "ALL" 
-                ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md" 
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Globe className="w-3 h-3 sm:w-4 sm:h-4" /> 전체보기
-            </Link>
-            <Link 
-              href="/?market=US&page=1"
-              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                currentMarket === "US" 
-                ? "bg-blue-600 text-white shadow-md" 
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-              }`}
-            >
-              🇺🇸 미국 주식 (US)
-            </Link>
-            <Link 
-              href="/?market=KR&page=1"
-              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all ${
-                currentMarket === "KR" 
-                ? "bg-red-500 text-white shadow-md" 
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-              }`}
-            >
-              🇰🇷 한국 주식 (KR)
-            </Link>
-          </div>
-          
-          <Badge variant="outline" className="px-3 py-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">
-            Weekly: {pagination?.total_items || 0}
-          </Badge>
-        </div>
 
         {/* ✅ 콘텐츠 카드 그리드 */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

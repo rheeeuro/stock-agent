@@ -8,6 +8,12 @@ interface Props {
   summary: DailySummary | null;
 }
 
+const MARKET_LABEL: Record<string, string> = { US: "🇺🇸 미국장", KR: "🇰🇷 한국장" };
+const MARKET_STYLE: Record<string, string> = {
+  US: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  KR: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+};
+
 export function DailySummaryCard({ summary }: Props) {
   if (!summary) return null;
 
@@ -17,6 +23,11 @@ export function DailySummaryCard({ summary }: Props) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-xl">
             🤖 오늘의 AI 투자 전략
+            {summary.market && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${MARKET_STYLE[summary.market] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
+                {MARKET_LABEL[summary.market] || summary.market}
+              </span>
+            )}
           </CardTitle>
           <div className="flex items-center text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 shrink-0 w-fit">
             <Calendar className="w-4 h-4 mr-1" />
