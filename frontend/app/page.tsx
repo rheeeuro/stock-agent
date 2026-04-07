@@ -51,7 +51,7 @@ export default async function Home(props: {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               콘텐츠 분석
             </h1>
-            <p className="text-slate-500 mt-1 text-sm">
+            <p className="text-slate-500 mt-1 text-sm hidden sm:block">
               YouTube 및 Telegram 데이터를 실시간 분석합니다.
             </p>
           </div>
