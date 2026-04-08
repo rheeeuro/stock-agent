@@ -20,6 +20,7 @@ from core.trading_engine import (
     AnalysisEngine,
     OrderExecutor,
 )
+from core.repository.stock_report import save_stock_reports
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ClosingBet")
@@ -146,6 +147,7 @@ class ClosingBetStrategy:
             supply = self.engine.analyze_supply_demand(c.code, c.current_price)
             c.inst_net_buy = supply["inst_net_buy"]
             c.frgn_net_buy = supply["frgn_net_buy"]
+            c.indv_net_buy = supply["indv_net_buy"]
             c.prog_net_buy = supply["prog_net_buy"]
             c.supply_grade = supply["supply_grade"]
             c.supply_days = supply["supply_days"]
@@ -175,7 +177,43 @@ class ClosingBetStrategy:
                 f"외인={c.frgn_net_buy/1e8:+,.0f}억  "
                 f"{'★대장' if c.is_leader else ''}"
             )
+
+        # Phase 2 결과를 DB에 저장
+        self._save_phase2_reports(filtered)
+
         return filtered
+
+    # ── Phase 2 결과 저장 ──
+    def _save_phase2_reports(self, candidates: list[StockCandidate]):
+        """Phase 2 분석 결과를 daily_stock_report 테이블에 저장"""
+        reports = []
+        for i, c in enumerate(candidates, 1):
+            reports.append({
+                "stock_code": c.code,
+                "stock_name": c.name,
+                "sector": c.sector,
+                "current_price": c.current_price,
+                "change_pct": c.change_pct,
+                "trading_value": c.trading_value,
+                "market_cap": c.market_cap,
+                "supply_grade": c.supply_grade.name,
+                "inst_net_buy": c.inst_net_buy,
+                "frgn_net_buy": c.frgn_net_buy,
+                "indv_net_buy": getattr(c, "indv_net_buy", 0),
+                "prog_net_buy": c.prog_net_buy,
+                "supply_days": c.supply_days,
+                "ma_aligned": c.ma_aligned,
+                "near_high": c.near_high,
+                "is_leader": c.is_leader,
+                "score": c.score,
+                "rank_no": i,
+            })
+
+        try:
+            save_stock_reports(reports)
+            logger.info(f"Phase 2 리포트 {len(reports)}건 DB 저장 완료")
+        except Exception as e:
+            logger.error(f"Phase 2 리포트 DB 저장 실패: {e}")
 
     # ── Phase 3: 매수 ──
     def _phase3_execute_buy(self, candidates: list[StockCandidate]):

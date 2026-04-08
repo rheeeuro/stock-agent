@@ -1,0 +1,512 @@
+import { StockReport, StockReportDetail } from "@/types";
+import { StockPriceBadge } from "@/components/StockPriceBadge";
+import { apiFetch } from "@/lib/api";
+import { Metadata } from "next";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  Building2,
+  Crown,
+  BarChart3,
+  Activity,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+async function getReportDetail(
+  date: string,
+  ticker: string
+): Promise<StockReportDetail | null> {
+  return apiFetch(`/api/stock-report/${date}/${ticker}`, null, {
+    next: { revalidate: 3600 },
+  } as RequestInit);
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { date: string; ticker: string };
+}): Promise<Metadata> {
+  const resolvedParams = await params;
+  const data = await getReportDetail(resolvedParams.date, resolvedParams.ticker);
+
+  if (!data) {
+    return { title: "리포트를 찾을 수 없습니다" };
+  }
+
+  const r = data.report;
+  const title = `[${resolvedParams.date}] ${r.stock_name} 종목 일간 리포트`;
+  const description = `수급등급: ${r.supply_grade} | 점수: ${r.score}점 | 기관 ${formatBillion(r.inst_net_buy)}억 | 외인 ${formatBillion(r.frgn_net_buy)}억`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://stock.rheeeuro.com/report/${resolvedParams.date}/${resolvedParams.ticker}`,
+      siteName: "주식 AI 에이전트",
+      type: "article",
+    },
+  };
+}
+
+function formatBillion(val: number): string {
+  const b = val / 1e8;
+  return b >= 0 ? `+${b.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}` : b.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+}
+
+function formatTradingValue(val: number): string {
+  const b = val / 1e8;
+  return `${b.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}`;
+}
+
+function formatMarketCap(val: number): string {
+  if (val <= 0) return "-";
+  const trillion = val / 1e12;
+  if (trillion >= 1) {
+    return `${trillion.toLocaleString("ko-KR", { maximumFractionDigits: 1 })}조`;
+  }
+  const billion = val / 1e8;
+  return `${billion.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}억`;
+}
+
+const SUPPLY_GRADE_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  S: { label: "S (외국인+기관 양매수)", color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/40" },
+  A: { label: "A (기관 강한 매수)", color: "text-orange-700 dark:text-orange-400", bg: "bg-orange-100 dark:bg-orange-900/40" },
+  B: { label: "B (외국인 단독 매수)", color: "text-yellow-700 dark:text-yellow-400", bg: "bg-yellow-100 dark:bg-yellow-900/40" },
+  C: { label: "C (해당없음)", color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
+};
+
+function SupplyGradeBadge({ grade }: { grade: string }) {
+  const style = SUPPLY_GRADE_STYLE[grade] || SUPPLY_GRADE_STYLE.C;
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${style.color} ${style.bg}`}>
+      {style.label}
+    </span>
+  );
+}
+
+function BoolBadge({ value, trueText, falseText }: { value: boolean; trueText: string; falseText: string }) {
+  return value ? (
+    <span className="inline-flex items-center gap-1 text-green-700 dark:text-green-400 font-semibold">
+      <CheckCircle2 className="w-4 h-4" /> {trueText}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-slate-400 dark:text-slate-500">
+      <XCircle className="w-4 h-4" /> {falseText}
+    </span>
+  );
+}
+
+function NetBuyCell({ value }: { value: number }) {
+  const b = value / 1e8;
+  const isPositive = b > 0;
+  const isNegative = b < 0;
+  return (
+    <span
+      className={`font-mono font-semibold ${
+        isPositive
+          ? "text-red-600 dark:text-red-400"
+          : isNegative
+          ? "text-blue-600 dark:text-blue-400"
+          : "text-slate-500"
+      }`}
+    >
+      {isPositive ? "+" : ""}
+      {b.toLocaleString("ko-KR", { maximumFractionDigits: 0 })}억
+    </span>
+  );
+}
+
+export default async function StockReportPage({
+  params,
+}: {
+  params: { date: string; ticker: string };
+}) {
+  const resolvedParams = await params;
+  const { date, ticker } = resolvedParams;
+  const data = await getReportDetail(date, ticker);
+
+  if (!data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+            해당 리포트가 없습니다
+          </h1>
+          <p className="text-slate-500">
+            {date} / {ticker} 에 대한 종목 리포트를 찾을 수 없습니다.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" /> 메인으로 돌아가기
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { report: r, history } = data;
+
+  return (
+    <main className="min-h-screen bg-slate-50 p-4 sm:p-8 dark:bg-slate-950">
+      <div className="mx-auto max-w-5xl space-y-6">
+        {/* 네비게이션 */}
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/report/${date}`}
+            className="p-2 bg-white dark:bg-slate-900 rounded-full shadow hover:bg-slate-100 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+          </Link>
+          <span className="text-sm text-slate-500">{date} 종목 리포트</span>
+        </div>
+
+        {/* 헤더 */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+              {r.stock_name}
+            </h1>
+            <span className="text-lg text-slate-400 font-mono">{r.stock_code}</span>
+            <StockPriceBadge ticker={r.stock_code} />
+          </div>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+              {r.score.toFixed(0)}점
+            </span>
+            <span className="text-sm text-slate-500">/ 100</span>
+            <span className="ml-2 px-2.5 py-0.5 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+              #{r.rank_no}위
+            </span>
+          </div>
+        </div>
+
+        {/* 1. 종목 기본 정보 카드 */}
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Building2 className="w-5 h-5 text-slate-500" />
+              종목 기본 정보
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 font-medium">섹터</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {r.sector || "기타"}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 font-medium">시가총액</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {formatMarketCap(r.market_cap)}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 font-medium">대장주 여부</p>
+                <BoolBadge
+                  value={r.is_leader}
+                  trueText="섹터 대장"
+                  falseText="일반"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500 font-medium">등락률</p>
+                <p
+                  className={`text-sm font-bold ${
+                    r.change_pct > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : r.change_pct < 0
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-slate-600"
+                  }`}
+                >
+                  {r.change_pct > 0 ? "+" : ""}
+                  {r.change_pct.toFixed(2)}%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 2. 거래대금 & 수급등급 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="w-5 h-5 text-slate-500" />
+                거래대금
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                {formatTradingValue(r.trading_value)}
+                <span className="text-base font-normal text-slate-500 ml-1">억원</span>
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {r.trading_value >= 200_000_000_000
+                  ? "우수 (2,000억 이상)"
+                  : r.trading_value >= 100_000_000_000
+                  ? "보통 (1,000억 이상)"
+                  : "저조"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 dark:border-slate-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Activity className="w-5 h-5 text-slate-500" />
+                수급 등급
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SupplyGradeBadge grade={r.supply_grade} />
+              <p className="text-xs text-slate-400 mt-2">
+                연속 수급 <span className="font-bold text-slate-700 dark:text-slate-300">{r.supply_days}일</span>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 3. 최근 3일 수급 동향 */}
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TrendingUp className="w-5 h-5 text-slate-500" />
+              최근 수급 동향
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-3 px-2 text-slate-500 font-medium">
+                      날짜
+                    </th>
+                    <th className="text-right py-3 px-2 text-slate-500 font-medium">
+                      개인
+                    </th>
+                    <th className="text-right py-3 px-2 text-slate-500 font-medium">
+                      기관
+                    </th>
+                    <th className="text-right py-3 px-2 text-slate-500 font-medium">
+                      외국인
+                    </th>
+                    <th className="text-right py-3 px-2 text-slate-500 font-medium">
+                      프로그램
+                    </th>
+                    <th className="text-center py-3 px-2 text-slate-500 font-medium">
+                      수급등급
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.length > 0 ? (
+                    history.map((h, i) => (
+                      <tr
+                        key={h.report_date}
+                        className={`border-b border-slate-100 dark:border-slate-800 ${
+                          i === 0
+                            ? "bg-indigo-50/50 dark:bg-indigo-900/10"
+                            : ""
+                        }`}
+                      >
+                        <td className="py-3 px-2 font-medium text-slate-700 dark:text-slate-300">
+                          {h.report_date}
+                          {i === 0 && (
+                            <span className="ml-1 text-xs text-indigo-500">
+                              (today)
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-right py-3 px-2">
+                          <NetBuyCell value={h.indv_net_buy} />
+                        </td>
+                        <td className="text-right py-3 px-2">
+                          <NetBuyCell value={h.inst_net_buy} />
+                        </td>
+                        <td className="text-right py-3 px-2">
+                          <NetBuyCell value={h.frgn_net_buy} />
+                        </td>
+                        <td className="text-right py-3 px-2">
+                          <NetBuyCell value={h.prog_net_buy} />
+                        </td>
+                        <td className="text-center py-3 px-2">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+                              SUPPLY_GRADE_STYLE[h.supply_grade]?.color || ""
+                            } ${SUPPLY_GRADE_STYLE[h.supply_grade]?.bg || ""}`}
+                          >
+                            {h.supply_grade}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="py-8 text-center text-slate-400"
+                      >
+                        이전 데이터가 없습니다
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 4. 차트 분석 (이평선 정배열) */}
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Activity className="w-5 h-5 text-slate-500" />
+              차트 분석
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 space-y-3">
+                <p className="text-sm text-slate-500 font-medium">
+                  이동평균 정배열 (5MA &gt; 10MA &gt; 20MA)
+                </p>
+                <BoolBadge
+                  value={r.ma_aligned}
+                  trueText="정배열 확인"
+                  falseText="정배열 아님"
+                />
+                <p className="text-xs text-slate-400">
+                  5일선이 10일선 위, 10일선이 20일선 위이며 종가가 5일선 위에 있는 상태
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 space-y-3">
+                <p className="text-sm text-slate-500 font-medium">
+                  52주 신고가 근접 (95% 이상)
+                </p>
+                <BoolBadge
+                  value={r.near_high}
+                  trueText="신고가 근접"
+                  falseText="신고가 미달"
+                />
+                <p className="text-xs text-slate-400">
+                  현재가가 52주 최고가의 95% 이상일 때 강한 상승 모멘텀으로 판단
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. 점수 상세 (점수 브레이크다운) */}
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Crown className="w-5 h-5 text-slate-500" />
+              종합 점수 상세
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <ScoreRow
+                label="수급 등급"
+                value={
+                  r.supply_grade === "S"
+                    ? 40
+                    : r.supply_grade === "A"
+                    ? 30
+                    : r.supply_grade === "B"
+                    ? 15
+                    : 0
+                }
+                max={40}
+              />
+              <ScoreRow
+                label="이평선 정배열"
+                value={r.ma_aligned ? 10 : 0}
+                max={10}
+              />
+              <ScoreRow
+                label="52주 신고가 근접"
+                value={r.near_high ? 10 : 0}
+                max={10}
+              />
+              <ScoreRow
+                label="거래대금"
+                value={
+                  r.trading_value >= 200_000_000_000
+                    ? 15
+                    : r.trading_value >= 100_000_000_000
+                    ? 8
+                    : 0
+                }
+                max={15}
+              />
+              <ScoreRow
+                label="섹터 대장주"
+                value={r.is_leader ? 10 : 0}
+                max={10}
+              />
+              <ScoreRow
+                label="연속 수급"
+                value={Math.min(r.supply_days, 5) * 3}
+                max={15}
+              />
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  총합
+                </span>
+                <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {r.score.toFixed(0)} / 100
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 면책 */}
+        <p className="text-xs text-slate-400 text-center pb-8">
+          본 리포트는 AI가 자동 생성한 참고 자료이며, 투자 판단의 근거로 사용해서는 안 됩니다.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function ScoreRow({
+  label,
+  value,
+  max,
+}: {
+  label: string;
+  value: number;
+  max: number;
+}) {
+  const pct = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-32 text-sm text-slate-600 dark:text-slate-400 shrink-0">
+        {label}
+      </span>
+      <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-16 text-right text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">
+        {value}/{max}
+      </span>
+    </div>
+  );
+}

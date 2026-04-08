@@ -1,0 +1,81 @@
+"""종목일간리포트 라우트"""
+from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
+from core.repository import (
+    get_stock_report,
+    get_stock_report_history,
+    get_stock_reports_by_date,
+    get_stock_report_dates,
+)
+
+router = APIRouter(prefix="/api", tags=["stock-report"])
+
+
+class StockReport(BaseModel):
+    id: int
+    report_date: str
+    stock_code: str
+    stock_name: str
+    sector: Optional[str] = None
+    current_price: int = 0
+    change_pct: float = 0.0
+    trading_value: int = 0
+    market_cap: int = 0
+    supply_grade: str = "C"
+    inst_net_buy: int = 0
+    frgn_net_buy: int = 0
+    indv_net_buy: int = 0
+    prog_net_buy: int = 0
+    supply_days: int = 0
+    ma_aligned: bool = False
+    near_high: bool = False
+    is_leader: bool = False
+    score: float = 0.0
+    rank_no: int = 0
+    created_at: Optional[str] = None
+
+
+class StockReportDetail(BaseModel):
+    report: StockReport
+    history: List[StockReport]
+
+
+@router.get("/stock-report/dates", response_model=List[str])
+def list_report_dates(limit: int = Query(30, description="최대 조회 일수")):
+    """리포트가 존재하는 날짜 목록"""
+    try:
+        return get_stock_report_dates(limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stock-report/{report_date}", response_model=List[StockReport])
+def list_reports_by_date(report_date: str):
+    """특정 날짜의 전체 종목 리포트 목록 (점수순)"""
+    try:
+        results = get_stock_reports_by_date(report_date)
+        if not results:
+            raise HTTPException(status_code=404, detail="해당 날짜의 리포트가 없습니다")
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stock-report/{report_date}/{stock_code}", response_model=StockReportDetail)
+def get_report_detail(report_date: str, stock_code: str):
+    """특정 날짜 + 종목의 상세 리포트 (최근 3일 수급 동향 포함)"""
+    try:
+        report = get_stock_report(report_date, stock_code)
+        if not report:
+            raise HTTPException(status_code=404, detail="해당 리포트가 없습니다")
+
+        history = get_stock_report_history(stock_code, days=3)
+        return {"report": report, "history": history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

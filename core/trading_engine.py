@@ -36,7 +36,7 @@ class StrategyConfig:
     TOP_N_BY_VALUE = 20
 
     # ---- 이동평균 정배열 기준 ----
-    MA_PERIODS = [5, 20, 60, 120]
+    MA_PERIODS = [5, 10, 20]
 
     # ---- 수급 기준 ----
     MIN_INST_NET_BUY_AMT = 1_000_000_000     # 기관 순매수 금액 최소 10억
@@ -94,6 +94,7 @@ class StockCandidate:
     supply_grade: SupplyGrade = SupplyGrade.C
     inst_net_buy: int = 0
     frgn_net_buy: int = 0
+    indv_net_buy: int = 0
     prog_net_buy: int = 0
     supply_days: int = 0
     score: float = 0.0
@@ -165,12 +166,26 @@ class AnalysisEngine:
                 if len(closes) >= period:
                     mas[period] = sum(closes[:period]) / period
 
-            # 정배열: 5MA > 20MA > 60MA > 120MA
+            # 정배열 조건 체크
             periods = [p for p in self.cfg.MA_PERIODS if p in mas]
-            is_aligned = all(
+
+            # (1) 5MA > 10MA > 20MA
+            ma_ordered = all(
                 mas[periods[i]] > mas[periods[i + 1]]
                 for i in range(len(periods) - 1)
             )
+
+            # (2) 종가가 5일선 위
+            close_above_ma5 = closes[0] > mas[5] if 5 in mas else False
+
+            # (3) 5일선 기울기 상승 (오늘 5MA > 어제 5MA)
+            if len(closes) >= 6:
+                ma5_prev = sum(closes[1:6]) / 5
+                ma5_rising = mas[5] > ma5_prev
+            else:
+                ma5_rising = False
+
+            is_aligned = ma_ordered and close_above_ma5 and ma5_rising
 
             # 역배열 체크 (즉시 제외 대상)
             is_reverse = len(periods) >= 3 and all(
@@ -196,6 +211,7 @@ class AnalysisEngine:
         result = {
             "inst_net_buy": 0,
             "frgn_net_buy": 0,
+            "indv_net_buy": 0,
             "prog_net_buy": 0,
             "supply_grade": SupplyGrade.C,
             "supply_days": 0,
@@ -212,6 +228,8 @@ class AnalysisEngine:
                     today.get("orgn", "0")) * 1_000_000
                 result["frgn_net_buy"] = self.parse_price(
                     today.get("frgnr_invsr", "0")) * 1_000_000
+                result["indv_net_buy"] = self.parse_price(
+                    today.get("indvd", "0")) * 1_000_000
             else:
                 logger.debug(f"[{stk_cd}] ka10059 stk_invsr_orgn 비어있음")
         except Exception as e:

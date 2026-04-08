@@ -61,3 +61,32 @@ export interface TickerDictionary {
   created_at: string;
   updated_at: string;
 }
+
+export interface StockReport {
+  id: number;
+  report_date: string;
+  stock_code: string;
+  stock_name: string;
+  sector: string | null;
+  current_price: number;
+  change_pct: number;
+  trading_value: number;
+  market_cap: number;
+  supply_grade: 'S' | 'A' | 'B' | 'C';
+  inst_net_buy: number;
+  frgn_net_buy: number;
+  indv_net_buy: number;
+  prog_net_buy: number;
+  supply_days: number;
+  ma_aligned: boolean;
+  near_high: boolean;
+  is_leader: boolean;
+  score: number;
+  rank_no: number;
+  created_at?: string;
+}
+
+export interface StockReportDetail {
+  report: StockReport;
+  history: StockReport[];
+}

@@ -25,6 +25,14 @@ from core.repository.source import (
     get_youtube_sources,
 )
 
+from core.repository.stock_report import (
+    save_stock_reports,
+    get_stock_report,
+    get_stock_report_history,
+    get_stock_reports_by_date,
+    get_stock_report_dates,
+)
+
 from core.repository.ticker import (
     lookup_ticker,
     lookup_name_by_ticker,
