@@ -1,3 +1,4 @@
+"""YouTube 콘텐츠 수집 워커 (15분마다 실행)"""
 import logging
 import time
 
@@ -27,17 +28,17 @@ class StockYoutubeAgent:
             transcript = transcript_list.find_transcript(['ko', 'en'])
             fetched = transcript.fetch()
             text = " ".join([snippet.text for snippet in fetched.snippets])
-            logging.info(f"📝 자막 가져오기 성공: {len(text)}자")
+            logging.info(f"자막 가져오기 성공: {len(text)}자")
             return text
         except Exception as e:
-            logging.warning(f"⚠️ 자막 가져오기 실패 ({video_id}): {e}")
+            logging.warning(f"자막 가져오기 실패 ({video_id}): {e}")
             return None
 
     def run_once(self):
         logging.info("에이전트 실행 시작 (uv)")
 
         target_channels = get_active_sources('youtube')
-        logging.info(f"📡 모니터링 대상 채널: {len(target_channels)}개")
+        logging.info(f"모니터링 대상 채널: {len(target_channels)}개")
 
         for channel in target_channels:
             name = channel['name']
@@ -55,27 +56,27 @@ class StockYoutubeAgent:
             if is_content_processed(video_id):
                 continue
 
-            logging.info(f"🆕 새 영상 발견 [{name}]: {video_title}")
+            logging.info(f"새 영상 발견 [{name}]: {video_title}")
             script_text = self.get_transcript(video_id)
 
             if not script_text:
-                logging.warning("⚠️ 자막이 없어 분석하지 않음")
+                logging.warning("자막이 없어 분석하지 않음")
                 continue
 
             prompt = YOUTUBE_ANALYSIS_PROMPT.format(title=video_title, content=script_text[:3000])
             result = analyze_content(prompt)
 
             if not result:
-                logging.warning("⚠️ AI 분석 결과가 없어 저장하지 않음")
+                logging.warning("AI 분석 결과가 없어 저장하지 않음")
                 continue
 
             if not result.related_companies:
-                logging.info("⏭️ 관련 기업(related_companies) 없음 - 스킵합니다.")
+                logging.info("관련 기업(related_companies) 없음 - 스킵합니다.")
                 continue
 
             analysis_text = f"{video_title}\n{script_text}"
             if not validate_analysis(analysis_text, result.related_companies, video_title):
-                logging.warning("⏭️ 환각 감지 - 저장하지 않습니다.")
+                logging.warning("환각 감지 - 저장하지 않습니다.")
                 continue
 
             video_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -97,9 +98,8 @@ class StockYoutubeAgent:
                 market=result.market,
             )
 
-            # 30~80점 구간은 텔레그램 알림 생략
             if result.sentiment_score is not None and 30 <= result.sentiment_score <= 80:
-                logging.info(f"⏭️ [알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
+                logging.info(f"[알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
             else:
                 send_analysis_alert(name, video_title, result.content, result.sentiment_score, tickers, result.market)
             time.sleep(2)

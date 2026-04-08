@@ -63,7 +63,7 @@ export default async function ReportPage({ params }: { params: { date: string } 
         </h1>
 
         {/* 기존에 만든 카드를 재사용! */}
-        <DailySummaryCard summary={report} />
+        <DailySummaryCard summary={report} disableLink />
         
         <div className="mt-8 p-6 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
            <h2 className="text-xl font-semibold mb-4">💡 AI 코멘트</h2>

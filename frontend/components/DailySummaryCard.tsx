@@ -6,6 +6,7 @@ import Link from "next/link";
 
 interface Props {
   summary: DailySummary | null;
+  disableLink?: boolean;
 }
 
 const MARKET_LABEL: Record<string, string> = { US: "🇺🇸 미국장", KR: "🇰🇷 한국장" };
@@ -14,25 +15,33 @@ const MARKET_STYLE: Record<string, string> = {
   KR: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
 
-export function DailySummaryCard({ summary }: Props) {
+export function DailySummaryCard({ summary, disableLink }: Props) {
   if (!summary) return null;
+
+  const titleContent = (
+    <CardTitle className={`flex items-center gap-2 text-xl ${!disableLink ? "group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" : ""}`}>
+      🤖 오늘의 AI 투자 전략
+      {summary.market && (
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${MARKET_STYLE[summary.market] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
+          {MARKET_LABEL[summary.market] || summary.market}
+        </span>
+      )}
+    </CardTitle>
+  );
+
+  const dateContent = (
+    <div className={`flex items-center text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 shrink-0 w-fit ${!disableLink ? "hover:bg-indigo-100 hover:text-indigo-600 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-400 transition-colors" : ""}`}>
+      <Calendar className="w-4 h-4 mr-1" />
+      {summary.report_date}
+    </div>
+  );
 
   return (
     <Card className="border-2 border-slate-200 dark:border-slate-800">
       <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-xl">
-            🤖 오늘의 AI 투자 전략
-            {summary.market && (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${MARKET_STYLE[summary.market] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
-                {MARKET_LABEL[summary.market] || summary.market}
-              </span>
-            )}
-          </CardTitle>
-          <div className="flex items-center text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full dark:bg-slate-800 shrink-0 w-fit">
-            <Calendar className="w-4 h-4 mr-1" />
-            {summary.report_date}
-          </div>
+          {disableLink ? titleContent : <Link href={`/report/${summary.report_date}`} className="group">{titleContent}</Link>}
+          {disableLink ? dateContent : <Link href={`/report/${summary.report_date}`}>{dateContent}</Link>}
         </div>
       </CardHeader>
       <CardContent>

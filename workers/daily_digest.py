@@ -1,3 +1,4 @@
+"""일일 요약 리포트 생성 워커 (KR: 7:50am, US: 10:20pm)"""
 import argparse
 import json
 import logging
@@ -22,11 +23,11 @@ MARKET_LABELS = {"KR": "국내장", "US": "미국장"}
 def generate_daily_report(market: str | None = None):
     try:
         market_label = MARKET_LABELS.get(market, "전체")
-        logging.info(f"🔍 오늘의 데이터 조회 중... (대상: {market_label})")
+        logging.info(f"오늘의 데이터 조회 중... (대상: {market_label})")
         rows = get_recent_analyses(hours=15, market=market)
 
         if not rows:
-            logging.info(f"📭 오늘 수집된 {market_label} 데이터가 없습니다. (분석 건너뜀)")
+            logging.info(f"오늘 수집된 {market_label} 데이터가 없습니다. (분석 건너뜀)")
             return
 
         reports_text = ""
@@ -51,7 +52,7 @@ def generate_daily_report(market: str | None = None):
 
         prompt = DAILY_DIGEST_PROMPT.format(reports_text=reports_text)
 
-        logging.info(f"🤖 ChatGPT 분석 시작 (모델: {OPENAI_MODEL}, 데이터 {len(rows)}건)...")
+        logging.info(f"ChatGPT 분석 시작 (모델: {OPENAI_MODEL}, 데이터 {len(rows)}건)...")
 
         response = _openai_client.chat.completions.create(
             model=OPENAI_MODEL,
@@ -60,15 +61,15 @@ def generate_daily_report(market: str | None = None):
         )
 
         raw_content = response.choices[0].message.content
-        logging.info(f"📝 ChatGPT 원본 응답:\n{raw_content}")
+        logging.info(f"ChatGPT 원본 응답:\n{raw_content}")
 
         result = parse_ai_json(raw_content)
 
         if result is None:
-            logging.error("❌ AI 응답에서 JSON을 파싱할 수 없습니다.")
+            logging.error("AI 응답에서 JSON을 파싱할 수 없습니다.")
             return
 
-        logging.info("✅ JSON 파싱 완벽 성공!")
+        logging.info("JSON 파싱 성공!")
 
         save_daily_summary(
             buy_stock=result.get('buy_stock'),
@@ -80,9 +81,9 @@ def generate_daily_report(market: str | None = None):
             market=market,
         )
 
-        logging.info("✅ 리포트 생성 완료!")
-        logging.info(f"🐂 매수: {result['buy_stock']} ({result['buy_reason']})")
-        logging.info(f"🐻 매도: {result['sell_stock']} ({result['sell_reason']})")
+        logging.info("리포트 생성 완료!")
+        logging.info(f"매수: {result['buy_stock']} ({result['buy_reason']})")
+        logging.info(f"매도: {result['sell_stock']} ({result['sell_reason']})")
 
         send_daily_digest_alert(
             datetime.now().strftime("%Y-%m-%d"),
@@ -91,7 +92,7 @@ def generate_daily_report(market: str | None = None):
         )
 
     except Exception as e:
-        logging.error(f"❌ 에러 발생: {e}")
+        logging.error(f"에러 발생: {e}")
 
 
 if __name__ == "__main__":
