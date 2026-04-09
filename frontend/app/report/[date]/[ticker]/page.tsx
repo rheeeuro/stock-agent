@@ -1,4 +1,4 @@
-import { StockReport, StockReportDetail } from "@/types";
+import { StockReportDetail, SupplyHistoryItem } from "@/types";
 import { StockPriceBadge } from "@/components/StockPriceBadge";
 import { apiFetch } from "@/lib/api";
 import { Metadata } from "next";
@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   TrendingUp,
-  TrendingDown,
   Building2,
   Crown,
   BarChart3,
@@ -38,7 +37,7 @@ export async function generateMetadata({
   }
 
   const r = data.report;
-  const title = `[${resolvedParams.date}] ${r.stock_name} 종목 일간 리포트`;
+  const title = `[${resolvedParams.date}] ${r.stock_name} 일간 리포트`;
   const description = `수급등급: ${r.supply_grade} | 점수: ${r.score}점 | 기관 ${formatBillion(r.inst_net_buy)}억 | 외인 ${formatBillion(r.frgn_net_buy)}억`;
 
   return {
@@ -152,7 +151,8 @@ export default async function StockReportPage({
     );
   }
 
-  const { report: r, history } = data;
+  const { report: r } = data;
+  const supplyHistory = r.supply_history ?? [];
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-8 dark:bg-slate-950">
@@ -277,12 +277,12 @@ export default async function StockReportPage({
           </Card>
         </div>
 
-        {/* 3. 최근 3일 수급 동향 */}
+        {/* 3. 최근 5일 수급 동향 */}
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <TrendingUp className="w-5 h-5 text-slate-500" />
-              최근 수급 동향
+              최근 5일 수급 동향
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -302,19 +302,13 @@ export default async function StockReportPage({
                     <th className="text-right py-3 px-2 text-slate-500 font-medium">
                       외국인
                     </th>
-                    <th className="text-right py-3 px-2 text-slate-500 font-medium">
-                      프로그램
-                    </th>
-                    <th className="text-center py-3 px-2 text-slate-500 font-medium">
-                      수급등급
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {history.length > 0 ? (
-                    history.map((h, i) => (
+                  {supplyHistory.length > 0 ? (
+                    supplyHistory.map((h: SupplyHistoryItem, i: number) => (
                       <tr
-                        key={h.report_date}
+                        key={h.date}
                         className={`border-b border-slate-100 dark:border-slate-800 ${
                           i === 0
                             ? "bg-indigo-50/50 dark:bg-indigo-900/10"
@@ -322,7 +316,7 @@ export default async function StockReportPage({
                         }`}
                       >
                         <td className="py-3 px-2 font-medium text-slate-700 dark:text-slate-300">
-                          {h.report_date}
+                          {h.date}
                           {i === 0 && (
                             <span className="ml-1 text-xs text-indigo-500">
                               (today)
@@ -338,27 +332,15 @@ export default async function StockReportPage({
                         <td className="text-right py-3 px-2">
                           <NetBuyCell value={h.frgn_net_buy} />
                         </td>
-                        <td className="text-right py-3 px-2">
-                          <NetBuyCell value={h.prog_net_buy} />
-                        </td>
-                        <td className="text-center py-3 px-2">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
-                              SUPPLY_GRADE_STYLE[h.supply_grade]?.color || ""
-                            } ${SUPPLY_GRADE_STYLE[h.supply_grade]?.bg || ""}`}
-                          >
-                            {h.supply_grade}
-                          </span>
-                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={4}
                         className="py-8 text-center text-slate-400"
                       >
-                        이전 데이터가 없습니다
+                        수급 이력 데이터가 없습니다
                       </td>
                     </tr>
                   )}

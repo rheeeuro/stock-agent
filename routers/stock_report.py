@@ -14,6 +14,13 @@ from core.repository import (
 router = APIRouter(prefix="/api", tags=["stock-report"])
 
 
+class SupplyHistoryItem(BaseModel):
+    date: str = ""
+    inst_net_buy: int = 0
+    frgn_net_buy: int = 0
+    indv_net_buy: int = 0
+
+
 class StockReport(BaseModel):
     id: int
     report_date: str
@@ -30,6 +37,7 @@ class StockReport(BaseModel):
     indv_net_buy: int = 0
     prog_net_buy: int = 0
     supply_days: int = 0
+    supply_history: List[SupplyHistoryItem] = []
     ma_aligned: bool = False
     near_high: bool = False
     is_leader: bool = False
@@ -40,7 +48,6 @@ class StockReport(BaseModel):
 
 class StockReportDetail(BaseModel):
     report: StockReport
-    history: List[StockReport]
 
 
 class SectorStock(BaseModel):
@@ -115,14 +122,13 @@ def list_reports_by_date(report_date: str):
 
 @router.get("/stock-report/{report_date}/{stock_code}", response_model=StockReportDetail)
 def get_report_detail(report_date: str, stock_code: str):
-    """특정 날짜 + 종목의 상세 리포트 (최근 3일 수급 동향 포함)"""
+    """특정 날짜 + 종목의 상세 리포트 (최근 5일 수급 동향 포함)"""
     try:
         report = get_stock_report(report_date, stock_code)
         if not report:
             raise HTTPException(status_code=404, detail="해당 리포트가 없습니다")
 
-        history = get_stock_report_history(stock_code, days=3)
-        return {"report": report, "history": history}
+        return {"report": report}
     except HTTPException:
         raise
     except Exception as e:

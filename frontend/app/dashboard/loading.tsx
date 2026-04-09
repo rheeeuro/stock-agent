@@ -30,10 +30,10 @@ function SectionSkeleton({
 
 function IndexCardSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
-      <Skeleton className="mb-2 h-4 w-20" />
-      <Skeleton className="mb-1 h-6 w-24" />
-      <Skeleton className="h-3 w-16" />
+    <div className="flex h-[104px] flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-7 w-24" />
+      <Skeleton className="h-4 w-16" />
     </div>
   );
 }

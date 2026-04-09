@@ -62,6 +62,13 @@ export interface TickerDictionary {
   updated_at: string;
 }
 
+export interface SupplyHistoryItem {
+  date: string;
+  inst_net_buy: number;
+  frgn_net_buy: number;
+  indv_net_buy: number;
+}
+
 export interface StockReport {
   id: number;
   report_date: string;
@@ -78,6 +85,7 @@ export interface StockReport {
   indv_net_buy: number;
   prog_net_buy: number;
   supply_days: number;
+  supply_history: SupplyHistoryItem[];
   ma_aligned: boolean;
   near_high: boolean;
   is_leader: boolean;
@@ -88,7 +96,6 @@ export interface StockReport {
 
 export interface StockReportDetail {
   report: StockReport;
-  history: StockReport[];
 }
 
 export interface SectorStock {

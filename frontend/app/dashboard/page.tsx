@@ -1,5 +1,5 @@
 import type { MarketIndices, MarketIndex, StockReport } from "@/types";
-import { MarketIndexCard } from "@/components/MarketIndexCard";
+import { MarketIndicesSection } from "@/components/MarketIndicesSection";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import {
@@ -7,9 +7,6 @@ import {
   TrendingUp,
   TrendingDown,
   BarChart3,
-  Globe,
-  Landmark,
-  Gem,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -60,45 +57,12 @@ export default async function DashboardPage(props: {
           </p>
         </div>
 
-        {/* 미국 시장 지수 */}
-        {showUS && (
-          <Section
-            icon={<Globe className="h-5 w-5 text-blue-500" />}
-            title="🇺🇸 미국 시장"
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {indices.US.map((item) => (
-                <MarketIndexCard key={item.symbol} item={item} />
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* 한국 시장 지수 */}
-        {showKR && (
-          <Section
-            icon={<Landmark className="h-5 w-5 text-red-500" />}
-            title="🇰🇷 한국 시장"
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {indices.KR.map((item) => (
-                <MarketIndexCard key={item.symbol} item={item} />
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* 원자재 & 암호화폐 (항상 표시) */}
-        <Section
-          icon={<Gem className="h-5 w-5 text-amber-500" />}
-          title="원자재 / 암호화폐"
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {indices.COMMODITIES.map((item) => (
-              <MarketIndexCard key={item.symbol} item={item} />
-            ))}
-          </div>
-        </Section>
+        {/* 시장 지수 (캐시 → 슬롯머신 애니메이션) */}
+        <MarketIndicesSection
+          freshData={indices}
+          showUS={showUS}
+          showKR={showKR}
+        />
 
         {/* 주도주 */}
         <div className={`grid gap-8 ${showUS && showKR ? "lg:grid-cols-2" : ""}`}>

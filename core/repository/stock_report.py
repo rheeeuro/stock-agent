@@ -1,4 +1,5 @@
 """종목일간리포트 데이터 접근"""
+import json
 from datetime import date, datetime
 
 from core.db import get_db
@@ -16,17 +17,21 @@ def save_stock_reports(candidates: list[dict]):
             INSERT INTO daily_stock_report
             (report_date, stock_code, stock_name, sector, current_price, change_pct,
              trading_value, market_cap, supply_grade, inst_net_buy, frgn_net_buy,
-             indv_net_buy, prog_net_buy, supply_days, ma_aligned, near_high,
+             indv_net_buy, prog_net_buy, supply_days, supply_history, ma_aligned, near_high,
              is_leader, score, rank_no)
-            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         for c in candidates:
+            supply_history_json = json.dumps(
+                c.get("supply_history", []), ensure_ascii=False
+            ) if c.get("supply_history") else None
             cursor.execute(query, (
                 c["stock_code"], c["stock_name"], c["sector"],
                 c["current_price"], c["change_pct"],
                 c["trading_value"], c["market_cap"],
                 c["supply_grade"], c["inst_net_buy"], c["frgn_net_buy"],
                 c["indv_net_buy"], c["prog_net_buy"], c["supply_days"],
+                supply_history_json,
                 c["ma_aligned"], c["near_high"],
                 c["is_leader"], c["score"], c["rank_no"],
             ))
@@ -106,3 +111,8 @@ def _serialize_dates(row: dict):
     for key in ("ma_aligned", "near_high", "is_leader"):
         if key in row:
             row[key] = bool(row[key])
+    # supply_history JSON 파싱
+    if "supply_history" in row and isinstance(row["supply_history"], str):
+        row["supply_history"] = json.loads(row["supply_history"])
+    if row.get("supply_history") is None:
+        row["supply_history"] = []

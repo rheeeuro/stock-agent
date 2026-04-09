@@ -13,7 +13,7 @@
 import time
 import logging
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -94,6 +94,7 @@ class StockCandidate:
     score: float = 0.0
     is_leader: bool = False
     market_suffix: str = "KS"  # yfinance suffix: KS=KOSPI, KQ=KOSDAQ
+    supply_history: list = field(default_factory=list)  # 최근 5일 수급 현황
 
 
 @dataclass
@@ -211,9 +212,10 @@ class AnalysisEngine:
             "supply_grade": SupplyGrade.C,
             "supply_days": 0,
             "foreign_brokers_buying": False,
+            "supply_history": [],
         }
 
-        # (a) 장중 투자자별 매매 (ka10063) — 14:30 이후 잠정치
+        # (a) 장중 투자자별 매매 (ka10059) — 14:30 이후 잠정치
         try:
             inv_data = self.api.get_intraday_investor(stk_cd)
             items = inv_data.get("stk_invsr_orgn", [])
@@ -225,6 +227,20 @@ class AnalysisEngine:
                     today.get("frgnr_invsr", "0")) * 1_000_000
                 result["indv_net_buy"] = self.parse_price(
                     today.get("indvd", "0")) * 1_000_000
+
+                # 최근 5일 수급 현황 추출
+                for item in items[:5]:
+                    raw_dt = item.get("dt", "")
+                    if len(raw_dt) == 8:
+                        formatted_dt = f"{raw_dt[:4]}-{raw_dt[4:6]}-{raw_dt[6:]}"
+                    else:
+                        formatted_dt = raw_dt
+                    result["supply_history"].append({
+                        "date": formatted_dt,
+                        "inst_net_buy": self.parse_price(item.get("orgn", "0")) * 1_000_000,
+                        "frgn_net_buy": self.parse_price(item.get("frgnr_invsr", "0")) * 1_000_000,
+                        "indv_net_buy": self.parse_price(item.get("indvd", "0")) * 1_000_000,
+                    })
             else:
                 logger.debug(f"[{stk_cd}] ka10059 stk_invsr_orgn 비어있음")
         except Exception as e:

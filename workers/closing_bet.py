@@ -159,6 +159,7 @@ class ClosingBetStrategy:
             c.prog_net_buy = supply["prog_net_buy"]
             c.supply_grade = supply["supply_grade"]
             c.supply_days = supply["supply_days"]
+            c.supply_history = supply.get("supply_history", [])
 
             if c.supply_grade == SupplyGrade.C:
                 logger.debug(f"수급 없음 → 제외: {c.name}")
@@ -210,6 +211,7 @@ class ClosingBetStrategy:
                 "indv_net_buy": getattr(c, "indv_net_buy", 0),
                 "prog_net_buy": c.prog_net_buy,
                 "supply_days": c.supply_days,
+                "supply_history": c.supply_history,
                 "ma_aligned": c.ma_aligned,
                 "near_high": c.near_high,
                 "is_leader": c.is_leader,

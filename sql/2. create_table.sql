@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS daily_stock_report (
     indv_net_buy BIGINT DEFAULT 0,
     prog_net_buy BIGINT DEFAULT 0,
     supply_days INT DEFAULT 0,
+    supply_history JSON DEFAULT NULL,    -- 최근 5일 수급 현황 (투자자별 순매수)
 
     -- 차트 분석
     ma_aligned TINYINT(1) DEFAULT 0,

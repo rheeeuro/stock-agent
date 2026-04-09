@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: { date: string } })
     return { title: "리포트를 찾을 수 없습니다" };
   }
 
-  const title = `[${resolvedParams.date}] AI가 분석한 오늘의 추천 종목: ${report.buy_stock}`;
+  const title = `[${resolvedParams.date}] 투자 리포트`;
   const description = `매수 추천: ${report.buy_stock} (${report.buy_reason}) / 매도 추천: ${report.sell_stock}. AI 주식 에이전트의 일일 브리핑을 확인하세요.`;
 
   return {
@@ -92,16 +92,6 @@ export default async function ReportPage({ params }: { params: { date: string } 
 
         {/* AI 투자 전략 카드 */}
         {report && <DailySummaryCard summary={report} disableLink />}
-
-        {report && (
-          <div className="p-6 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
-             <h2 className="text-xl font-semibold mb-4">AI 코멘트</h2>
-             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-               오늘 수집된 다양한 유튜브 및 텔레그램 데이터를 종합한 결과입니다.
-               투자의 참고 자료로만 활용하시기 바랍니다.
-             </p>
-          </div>
-        )}
 
         {/* 주도 섹터 */}
         {sectorReports.length > 0 && (
@@ -266,6 +256,17 @@ export default async function ReportPage({ params }: { params: { date: string } 
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* AI 코멘트 */}
+        {report && (
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
+             <h2 className="text-xl font-semibold mb-4">AI 코멘트</h2>
+             <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+               오늘 수집된 다양한 유튜브 및 텔레그램 데이터를 종합한 결과입니다.
+               투자의 참고 자료로만 활용하시기 바랍니다.
+             </p>
           </div>
         )}
       </div>

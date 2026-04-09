@@ -4,7 +4,7 @@ import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 
 async function getContents(page: number, limit: number, market: string): Promise<PaginatedResponse<ContentAnalysis>> {
   return apiFetch(`/api/contents?page=${page}&limit=${limit}&market=${market}`, {
@@ -48,7 +48,8 @@ export default async function Home(props: {
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-indigo-500" />
               콘텐츠 분석
             </h1>
             <p className="text-slate-500 mt-1 text-sm hidden sm:block">
