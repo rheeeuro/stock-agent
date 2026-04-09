@@ -1,7 +1,8 @@
-import { ContentAnalysis } from "@/types";
+import { ContentAnalysis, StockReport } from "@/types";
 import { ContentCard } from "@/components/ContentCard";
 import { StockPriceBadge } from "@/components/StockPriceBadge";
 import { SentimentChart } from "@/components/SentimentChart";
+import { StockReportHistory } from "@/components/StockReportHistory";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -20,14 +21,19 @@ async function getStockHistory(ticker: string): Promise<any[]> {
   return apiFetch(`/api/stock-history/${ticker}`, []);
 }
 
+async function getStockReports(ticker: string): Promise<StockReport[]> {
+  return apiFetch(`/api/stock-report/history/${ticker}?limit=5`, []);
+}
+
 export default async function StockDetailPage({ params }: { params: { ticker: string } }) {
   // URL에서 티커 이름(예: NVDA)을 빼옵니다 (대문자로 통일)
   const resolvedParams = await Promise.resolve(params);
   const decodedTicker = decodeURIComponent(resolvedParams.ticker).toUpperCase();
-  const [stockName, contents, history] = await Promise.all([
+  const [stockName, contents, history, stockReports] = await Promise.all([
     getStockName(decodedTicker),
     getTickerContents(decodedTicker),
-    getStockHistory(decodedTicker)
+    getStockHistory(decodedTicker),
+    getStockReports(decodedTicker),
   ]);
 
   // DB에서 찾은 이름이 영문 티커와 다르면 기업명과 티커를 분리 표시
@@ -56,6 +62,7 @@ export default async function StockDetailPage({ params }: { params: { ticker: st
         {contents.length > 0 ? (
           <>
             <SentimentChart data={contents} history={history} displayName={stockName} />
+            <StockReportHistory reports={stockReports} />
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {contents.map((item) => (
                 <ContentCard key={item.id} item={item} />

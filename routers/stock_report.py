@@ -51,6 +51,16 @@ def list_report_dates(limit: int = Query(30, description="최대 조회 일수")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/stock-report/history/{stock_code}", response_model=List[StockReport])
+def list_reports_by_stock(stock_code: str, limit: int = Query(5, description="최대 조회 일수")):
+    """특정 종목의 최근 N일 리포트 목록 (최신순)"""
+    try:
+        results = get_stock_report_history(stock_code, days=limit)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/stock-report/{report_date}", response_model=List[StockReport])
 def list_reports_by_date(report_date: str):
     """특정 날짜의 전체 종목 리포트 목록 (점수순)"""

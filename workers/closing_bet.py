@@ -25,6 +25,9 @@ from core.repository.stock_report import save_stock_reports
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ClosingBet")
 
+# 키움 마켓코드 → yfinance 접미사 매핑
+KIWOOM_MARKET_SUFFIX = {"001": "KS", "101": "KQ"}
+
 
 class ClosingBetStrategy:
     def __init__(self):
@@ -103,6 +106,7 @@ class ClosingBetStrategy:
                         code=code, name=name, sector=sector,
                         current_price=cp, trading_value=tv,
                         market_cap=mc, change_pct=chg,
+                        market_suffix=KIWOOM_MARKET_SUFFIX.get(mrkt, "KS"),
                     ))
                     seen_codes.add(code)
             except Exception as e:
@@ -189,7 +193,7 @@ class ClosingBetStrategy:
         reports = []
         for i, c in enumerate(candidates, 1):
             reports.append({
-                "stock_code": c.code,
+                "stock_code": f"{c.code}.{c.market_suffix}",
                 "stock_name": c.name,
                 "sector": c.sector,
                 "current_price": c.current_price,

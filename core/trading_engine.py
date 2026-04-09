@@ -99,6 +99,7 @@ class StockCandidate:
     supply_days: int = 0
     score: float = 0.0
     is_leader: bool = False
+    market_suffix: str = "KS"  # yfinance suffix: KS=KOSPI, KQ=KOSDAQ
 
 
 @dataclass
