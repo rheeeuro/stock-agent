@@ -1,4 +1,4 @@
-import { DailySummary, StockReport } from "@/types";
+import { DailySummary, StockReport, SectorReport } from "@/types";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { apiFetch } from "@/lib/api";
 import { Metadata } from "next";
@@ -20,6 +20,12 @@ async function getReportByDate(date: string): Promise<DailySummary | null> {
 
 async function getStockReports(date: string): Promise<StockReport[]> {
   return apiFetch(`/api/stock-report/${date}`, [], {
+    next: { revalidate: 3600 },
+  } as RequestInit);
+}
+
+async function getSectorReports(date: string): Promise<SectorReport[]> {
+  return apiFetch(`/api/sector-report/${date}`, [], {
     next: { revalidate: 3600 },
   } as RequestInit);
 }
@@ -59,9 +65,10 @@ export default async function ReportPage({ params }: { params: { date: string } 
     const resolvedParams = await params;
     const date = resolvedParams.date;
 
-    const [report, stockReports] = await Promise.all([
+    const [report, stockReports, sectorReports] = await Promise.all([
       getReportByDate(date),
       getStockReports(date),
+      getSectorReports(date),
     ]);
 
     if (!report && stockReports.length === 0) {
@@ -93,6 +100,87 @@ export default async function ReportPage({ params }: { params: { date: string } 
                오늘 수집된 다양한 유튜브 및 텔레그램 데이터를 종합한 결과입니다.
                투자의 참고 자료로만 활용하시기 바랍니다.
              </p>
+          </div>
+        )}
+
+        {/* 주도 섹터 */}
+        {sectorReports.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                주도 섹터
+              </h2>
+              <span className="text-sm text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                TOP {sectorReports.length}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {sectorReports.map((s) => {
+                const isUp = s.flu_rt > 0;
+                const isDown = s.flu_rt < 0;
+
+                return (
+                  <Card key={s.thema_grp_cd} className="border-slate-200 dark:border-slate-800">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-xs font-bold text-violet-700 dark:text-violet-300">
+                            {s.rank_no}
+                          </span>
+                          <span className="font-bold text-slate-800 dark:text-slate-100">
+                            {s.thema_nm}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {s.stk_num}종목
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className={isUp ? "text-red-600 dark:text-red-400 font-semibold" : isDown ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-slate-500"}>
+                            {isUp ? "+" : ""}{s.flu_rt.toFixed(2)}%
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            기간수익 <span className={s.dt_prft_rt > 0 ? "text-red-500" : s.dt_prft_rt < 0 ? "text-blue-500" : "text-slate-500"}>
+                              {s.dt_prft_rt > 0 ? "+" : ""}{s.dt_prft_rt.toFixed(1)}%
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
+                        <span className="text-red-500">{s.rising_stk_num}상승</span>
+                        <span>/</span>
+                        <span className="text-blue-500">{s.fall_stk_num}하락</span>
+                      </div>
+
+                      {/* 구성종목 */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.stocks.slice(0, 6).map((stk) => {
+                          const stkUp = parseFloat(stk.flu_rt) > 0;
+                          const stkDown = parseFloat(stk.flu_rt) < 0;
+                          return (
+                            <span
+                              key={stk.stk_cd}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs"
+                            >
+                              <span className="text-slate-700 dark:text-slate-300">{stk.stk_nm}</span>
+                              <span className={stkUp ? "text-red-500" : stkDown ? "text-blue-500" : "text-slate-400"}>
+                                {stkUp ? "+" : ""}{parseFloat(stk.flu_rt).toFixed(1)}%
+                              </span>
+                            </span>
+                          );
+                        })}
+                        {s.stocks.length > 6 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs text-slate-400">
+                            +{s.stocks.length - 6}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         )}
 

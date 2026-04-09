@@ -5,11 +5,13 @@ from core.db import get_db
 
 
 def save_stock_reports(candidates: list[dict]):
-    """Phase 2 결과를 일괄 저장 (UPSERT)"""
+    """Phase 2 결과를 일괄 저장 (오늘 날짜 기존 데이터 삭제 후 INSERT)"""
     if not candidates:
         return
 
     with get_db() as (conn, cursor):
+        cursor.execute("DELETE FROM daily_stock_report WHERE report_date = CURDATE()")
+
         query = """
             INSERT INTO daily_stock_report
             (report_date, stock_code, stock_name, sector, current_price, change_pct,
@@ -17,24 +19,6 @@ def save_stock_reports(candidates: list[dict]):
              indv_net_buy, prog_net_buy, supply_days, ma_aligned, near_high,
              is_leader, score, rank_no)
             VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                stock_name = VALUES(stock_name),
-                sector = VALUES(sector),
-                current_price = VALUES(current_price),
-                change_pct = VALUES(change_pct),
-                trading_value = VALUES(trading_value),
-                market_cap = VALUES(market_cap),
-                supply_grade = VALUES(supply_grade),
-                inst_net_buy = VALUES(inst_net_buy),
-                frgn_net_buy = VALUES(frgn_net_buy),
-                indv_net_buy = VALUES(indv_net_buy),
-                prog_net_buy = VALUES(prog_net_buy),
-                supply_days = VALUES(supply_days),
-                ma_aligned = VALUES(ma_aligned),
-                near_high = VALUES(near_high),
-                is_leader = VALUES(is_leader),
-                score = VALUES(score),
-                rank_no = VALUES(rank_no)
         """
         for c in candidates:
             cursor.execute(query, (

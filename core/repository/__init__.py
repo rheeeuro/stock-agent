@@ -33,6 +33,12 @@ from core.repository.stock_report import (
     get_stock_report_dates,
 )
 
+from core.repository.sector_report import (
+    save_sector_reports,
+    get_sector_reports_by_date,
+    get_sector_report_dates,
+)
+
 from core.repository.ticker import (
     lookup_ticker,
     lookup_name_by_ticker,

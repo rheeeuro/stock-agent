@@ -90,3 +90,26 @@ export interface StockReportDetail {
   report: StockReport;
   history: StockReport[];
 }
+
+export interface SectorStock {
+  stk_cd: string;
+  stk_nm: string;
+  cur_prc: string;
+  flu_rt: string;
+}
+
+export interface SectorReport {
+  id: number;
+  report_date: string;
+  thema_grp_cd: string;
+  thema_nm: string;
+  stk_num: number;
+  flu_rt: number;
+  dt_prft_rt: number;
+  main_stk: string | null;
+  rising_stk_num: number;
+  fall_stk_num: number;
+  rank_no: number;
+  stocks: SectorStock[];
+  created_at?: string;
+}

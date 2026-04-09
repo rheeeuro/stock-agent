@@ -21,6 +21,7 @@ from core.trading_engine import (
     OrderExecutor,
 )
 from core.repository.stock_report import save_stock_reports
+from core.repository.sector_report import save_sector_reports
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ClosingBet")
@@ -46,6 +47,9 @@ class ClosingBetStrategy:
         self.api.get_access_token()
 
         try:
+            # 0-1. 관심 섹터 동적 로드 (ka90001 + ka90002)
+            self._fetch_watchlist_sectors()
+
             # 1. Phase 1 — 사전 스크리닝 (13:00~)
             # self._wait_until(self.strategy_cfg.SCREENING_START)
             candidates = self._phase1_screening()
@@ -240,6 +244,83 @@ class ClosingBetStrategy:
 
         for target in buy_targets:
             self.executor.execute_split_buy(target)
+
+    # ── 관심 섹터 동적 로드 ──
+    def _fetch_watchlist_sectors(self):
+        """ka90001(테마그룹) + ka90002(테마구성종목)로 WATCHLIST_SECTORS 동적 구성 & DB 저장"""
+        cfg = self.strategy_cfg
+        watchlist: dict[str, list[str]] = {}
+        sector_reports: list[dict] = []
+
+        try:
+            data = self.api.get_theme_groups(
+                date_tp=cfg.THEME_PERIOD_DAYS,
+                flu_pl_amt_tp="1",
+                stex_tp="3",
+            )
+            themes = data.get("thema_grp", [])
+            top_themes = themes[:cfg.TOP_THEME_COUNT]
+
+            for rank, theme in enumerate(top_themes, 1):
+                thema_nm = theme.get("thema_nm", "")
+                thema_grp_cd = theme.get("thema_grp_cd", "")
+                if not thema_nm or not thema_grp_cd:
+                    continue
+
+                stocks = []
+                try:
+                    stock_data = self.api.get_theme_stocks(
+                        thema_grp_cd=thema_grp_cd,
+                        date_tp=cfg.THEME_PERIOD_DAYS,
+                        stex_tp="3",
+                    )
+                    stocks = stock_data.get("thema_comp_stk", [])
+                    codes = [s["stk_cd"] for s in stocks if s.get("stk_cd")]
+                    if codes:
+                        watchlist[thema_nm] = codes
+                    time.sleep(0.3)
+                except Exception as e:
+                    logger.warning(f"테마 구성종목 조회 실패 [{thema_nm}]: {e}")
+
+                sector_reports.append({
+                    "thema_grp_cd": thema_grp_cd,
+                    "thema_nm": thema_nm,
+                    "stk_num": int(theme.get("stk_num", 0)),
+                    "flu_rt": float(theme.get("flu_rt", "0").replace("+", "")),
+                    "dt_prft_rt": float(theme.get("dt_prft_rt", "0").replace("+", "")),
+                    "main_stk": theme.get("main_stk", ""),
+                    "rising_stk_num": int(theme.get("rising_stk_num", 0)),
+                    "fall_stk_num": int(theme.get("fall_stk_num", 0)),
+                    "rank_no": rank,
+                    "stocks": [
+                        {
+                            "stk_cd": s.get("stk_cd", ""),
+                            "stk_nm": s.get("stk_nm", ""),
+                            "cur_prc": s.get("cur_prc", "0"),
+                            "flu_rt": s.get("flu_rt", "0"),
+                        }
+                        for s in stocks if s.get("stk_cd")
+                    ],
+                })
+
+        except Exception as e:
+            logger.error(f"테마그룹 조회 실패: {e}")
+
+        # DB 저장
+        if sector_reports:
+            try:
+                save_sector_reports(sector_reports)
+                logger.info(f"주도섹터 {len(sector_reports)}개 테마 DB 저장 완료")
+            except Exception as e:
+                logger.error(f"주도섹터 DB 저장 실패: {e}")
+
+        if watchlist:
+            cfg.WATCHLIST_SECTORS = watchlist
+            logger.info(f"관심섹터 {len(watchlist)}개 테마 로드 완료:")
+            for name, codes in watchlist.items():
+                logger.info(f"  {name}: {len(codes)}종목")
+        else:
+            logger.warning("테마 API 응답 없음 — 관심섹터 보강 없이 진행")
 
     # ── 유틸 ──
     def _find_sector(self, code: str) -> str:

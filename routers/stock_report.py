@@ -8,6 +8,7 @@ from core.repository import (
     get_stock_report_history,
     get_stock_reports_by_date,
     get_stock_report_dates,
+    get_sector_reports_by_date,
 )
 
 router = APIRouter(prefix="/api", tags=["stock-report"])
@@ -40,6 +41,43 @@ class StockReport(BaseModel):
 class StockReportDetail(BaseModel):
     report: StockReport
     history: List[StockReport]
+
+
+class SectorStock(BaseModel):
+    stk_cd: str
+    stk_nm: str
+    cur_prc: str = "0"
+    flu_rt: str = "0"
+
+
+class SectorReport(BaseModel):
+    id: int
+    report_date: str
+    thema_grp_cd: str
+    thema_nm: str
+    stk_num: int = 0
+    flu_rt: float = 0.0
+    dt_prft_rt: float = 0.0
+    main_stk: Optional[str] = None
+    rising_stk_num: int = 0
+    fall_stk_num: int = 0
+    rank_no: int = 0
+    stocks: List[SectorStock] = []
+    created_at: Optional[str] = None
+
+
+@router.get("/sector-report/{report_date}", response_model=List[SectorReport])
+def list_sector_reports(report_date: str):
+    """특정 날짜의 주도 섹터 목록 (순위순, 구성종목 포함)"""
+    try:
+        results = get_sector_reports_by_date(report_date)
+        if not results:
+            raise HTTPException(status_code=404, detail="해당 날짜의 섹터 리포트가 없습니다")
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/stock-report/dates", response_model=List[str])
