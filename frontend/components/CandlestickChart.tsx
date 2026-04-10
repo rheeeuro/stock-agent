@@ -22,9 +22,12 @@ interface CandleData {
 
 function toTimestamp(timeStr: string): UTCTimestamp {
   // "2025-09-17T13:20" → UTC timestamp (seconds)
-  // KST(+9) → UTC 보정: 한국시간 기준 저장이므로 UTC로 변환
-  const d = new Date(timeStr + ":00+09:00");
-  return (d.getTime() / 1000) as UTCTimestamp;
+  // lightweight-charts는 UTC 기준으로 표시하므로,
+  // KST 시간값을 그대로 UTC로 넣어 차트에 한국 시간이 보이게 함
+  const [datePart, timePart] = timeStr.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  return (Date.UTC(year, month - 1, day, hour, minute, 0) / 1000) as UTCTimestamp;
 }
 
 export function CandlestickChart({ data }: { data: CandleData[] }) {
