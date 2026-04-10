@@ -69,6 +69,15 @@ export interface SupplyHistoryItem {
   indv_net_buy: number;
 }
 
+export interface HourlyCandleItem {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface StockReport {
   id: number;
   report_date: string;
@@ -88,6 +97,7 @@ export interface StockReport {
   supply_history: SupplyHistoryItem[];
   ma_aligned: boolean;
   near_high: boolean;
+  hourly_candles: HourlyCandleItem[];
   is_leader: boolean;
   score: number;
   rank_no: number;

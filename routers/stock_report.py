@@ -21,6 +21,15 @@ class SupplyHistoryItem(BaseModel):
     indv_net_buy: int = 0
 
 
+class HourlyCandleItem(BaseModel):
+    time: str = ""
+    open: int = 0
+    high: int = 0
+    low: int = 0
+    close: int = 0
+    volume: int = 0
+
+
 class StockReport(BaseModel):
     id: int
     report_date: str
@@ -40,6 +49,7 @@ class StockReport(BaseModel):
     supply_history: List[SupplyHistoryItem] = []
     ma_aligned: bool = False
     near_high: bool = False
+    hourly_candles: List[HourlyCandleItem] = []
     is_leader: bool = False
     score: float = 0.0
     rank_no: int = 0

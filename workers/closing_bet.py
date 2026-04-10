@@ -165,6 +165,10 @@ class ClosingBetStrategy:
                 logger.debug(f"수급 없음 → 제외: {c.name}")
                 continue
 
+            # 1시간봉 캔들 데이터 조회
+            c.hourly_candles = self.engine.fetch_hourly_candles(c.code)
+            logger.debug(f"[{c.name}] 1시간봉 {len(c.hourly_candles)}개 수집")
+
             filtered.append(c)
             time.sleep(0.5)
 
@@ -212,6 +216,7 @@ class ClosingBetStrategy:
                 "prog_net_buy": c.prog_net_buy,
                 "supply_days": c.supply_days,
                 "supply_history": c.supply_history,
+                "hourly_candles": c.hourly_candles,
                 "ma_aligned": c.ma_aligned,
                 "near_high": c.near_high,
                 "is_leader": c.is_leader,

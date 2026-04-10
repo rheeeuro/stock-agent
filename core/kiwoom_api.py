@@ -13,10 +13,11 @@
   ka10032  거래대금상위요청        POST /api/dostk/rkinfo
   ka10059  종목별투자자기관별요청  POST /api/dostk/stkinfo
   ka10063  장중투자자별매매요청    POST /api/dostk/mrktpr
+  ka10080  주식분봉차트조회요청    POST /api/dostk/chart
   ka10081  주식일봉차트조회요청    POST /api/dostk/chart
   ka10131  기관외국인연속매매현황  POST /api/dostk/frgnistt
-  ka90001  테마그룹별요청          POST /api/dostk/rkinfo
-  ka90002  테마구성종목요청        POST /api/dostk/rkinfo
+  ka90001  테마그룹별요청          POST /api/dostk/thme
+  ka90002  테마구성종목요청        POST /api/dostk/thme
   ka90004  종목별프로그램매매현황  POST /api/dostk/stkinfo
   ka90008  종목시간별프로그램매매  POST /api/dostk/mrktpr
   ka90009  외국인기관매매상위요청  POST /api/dostk/rkinfo
@@ -57,6 +58,7 @@ class KiwoomConfig:
     URL_STKINFO = "/api/dostk/stkinfo"  # 종목정보 (ka10001, ka10002, ka90004 등)
     URL_MRKTPR  = "/api/dostk/mrktpr"   # 시세 (ka10005, ka10063, ka90008 등)
     URL_RKINFO  = "/api/dostk/rkinfo"   # 순위정보 (ka10032, ka90009 등)
+    URL_THME    = "/api/dostk/thme"    # 테마 (ka90001, ka90002)
     URL_FRINST  = "/api/dostk/frgnistt"  # 기관/외국인 (ka10008, ka10009, ka10131)
     URL_CHART   = "/api/dostk/chart"    # 차트 (ka10081 등)
     URL_ORDR    = "/api/dostk/ordr"     # 주문 (kt10000, kt10001 등)
@@ -273,7 +275,7 @@ class KiwoomRestAPI:
         stex_tp: 1=KRX, 2=NXT, 3=통합
         응답: thema_grp (LIST) — thema_grp_cd, thema_nm, stk_num, flu_rt, dt_prft_rt, main_stk
         """
-        return self._post(self.cfg.URL_RKINFO, "ka90001", {
+        return self._post(self.cfg.URL_THME, "ka90001", {
             "qry_tp": "0",
             "stk_cd": "",
             "date_tp": date_tp,
@@ -291,7 +293,7 @@ class KiwoomRestAPI:
         stex_tp: 1=KRX, 2=NXT, 3=통합
         응답: thema_comp_stk (LIST) — stk_cd, stk_nm, cur_prc, flu_rt 등
         """
-        return self._post(self.cfg.URL_RKINFO, "ka90002", {
+        return self._post(self.cfg.URL_THME, "ka90002", {
             "date_tp": date_tp,
             "thema_grp_cd": thema_grp_cd,
             "stex_tp": stex_tp,
@@ -349,6 +351,42 @@ class KiwoomRestAPI:
     # ────────────────────────────────────────────
     # 차트 (/api/dostk/chart)
     # ────────────────────────────────────────────
+    def get_minute_chart(self, stk_cd: str, tic_scope: str = "60",
+                         base_dt: str = "") -> dict:
+        """
+        ka10080 — 주식분봉차트조회요청
+        tic_scope: 1, 3, 5, 10, 15, 30, 45, 60 (분)
+        base_dt: 기준일자 (YYYYMMDD, 빈값=오늘)
+        응답: stk_min_pole_chart_qry (LIST) — cur_prc, trde_qty,
+              cntr_tm, open_pric, high_pric, low_pric 등
+        """
+        if not base_dt:
+            base_dt = datetime.now().strftime("%Y%m%d")
+        body = {
+            "stk_cd": stk_cd,
+            "tic_scope": tic_scope,
+            "upd_stkpc_tp": "1",
+            "base_dt": base_dt,
+        }
+        return self._post(self.cfg.URL_CHART, "ka10080", body)
+
+    def get_minute_chart_pages(self, stk_cd: str, tic_scope: str = "60",
+                               base_dt: str = "", max_pages: int = 5) -> list:
+        """ka10080 연속조회로 분봉 데이터 다건 수집"""
+        if not base_dt:
+            base_dt = datetime.now().strftime("%Y%m%d")
+        body = {
+            "stk_cd": stk_cd,
+            "tic_scope": tic_scope,
+            "upd_stkpc_tp": "1",
+            "base_dt": base_dt,
+        }
+        return self.fetch_all_pages(
+            self.cfg.URL_CHART, "ka10080", body,
+            list_key="stk_min_pole_chart_qry",
+            max_pages=max_pages,
+        )
+
     def get_daily_chart(self, stk_cd: str, dt: str = "",
                         upd_stk_prc: str = "1") -> dict:
         """

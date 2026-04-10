@@ -1,5 +1,6 @@
 import { StockReportDetail, SupplyHistoryItem } from "@/types";
 import { StockPriceBadge } from "@/components/StockPriceBadge";
+import { CandlestickChart } from "@/components/CandlestickChart";
 import { apiFetch } from "@/lib/api";
 import { Metadata } from "next";
 import Link from "next/link";
@@ -350,7 +351,7 @@ export default async function StockReportPage({
           </CardContent>
         </Card>
 
-        {/* 4. 차트 분석 (이평선 정배열) */}
+        {/* 4. 차트 분석 (캔들차트 + 이평선 정배열) */}
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -358,7 +359,10 @@ export default async function StockReportPage({
               차트 분석
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* 캔들차트 */}
+            <CandlestickChart data={r.hourly_candles ?? []} />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 space-y-3">
                 <p className="text-sm text-slate-500 font-medium">

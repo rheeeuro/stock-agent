@@ -17,14 +17,18 @@ def save_stock_reports(candidates: list[dict]):
             INSERT INTO daily_stock_report
             (report_date, stock_code, stock_name, sector, current_price, change_pct,
              trading_value, market_cap, supply_grade, inst_net_buy, frgn_net_buy,
-             indv_net_buy, prog_net_buy, supply_days, supply_history, ma_aligned, near_high,
+             indv_net_buy, prog_net_buy, supply_days, supply_history,
+             ma_aligned, near_high, hourly_candles,
              is_leader, score, rank_no)
-            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         for c in candidates:
             supply_history_json = json.dumps(
                 c.get("supply_history", []), ensure_ascii=False
             ) if c.get("supply_history") else None
+            hourly_candles_json = json.dumps(
+                c.get("hourly_candles", []), ensure_ascii=False
+            ) if c.get("hourly_candles") else None
             cursor.execute(query, (
                 c["stock_code"], c["stock_name"], c["sector"],
                 c["current_price"], c["change_pct"],
@@ -32,7 +36,7 @@ def save_stock_reports(candidates: list[dict]):
                 c["supply_grade"], c["inst_net_buy"], c["frgn_net_buy"],
                 c["indv_net_buy"], c["prog_net_buy"], c["supply_days"],
                 supply_history_json,
-                c["ma_aligned"], c["near_high"],
+                c["ma_aligned"], c["near_high"], hourly_candles_json,
                 c["is_leader"], c["score"], c["rank_no"],
             ))
         conn.commit()
@@ -116,3 +120,8 @@ def _serialize_dates(row: dict):
         row["supply_history"] = json.loads(row["supply_history"])
     if row.get("supply_history") is None:
         row["supply_history"] = []
+    # hourly_candles JSON 파싱
+    if "hourly_candles" in row and isinstance(row["hourly_candles"], str):
+        row["hourly_candles"] = json.loads(row["hourly_candles"])
+    if row.get("hourly_candles") is None:
+        row["hourly_candles"] = []

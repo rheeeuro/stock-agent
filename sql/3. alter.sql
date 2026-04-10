@@ -47,3 +47,6 @@ ALTER TABLE content_analysis ADD COLUMN market VARCHAR(10) DEFAULT 'UNKNOWN';
 ALTER TABLE ticker_dictionary ADD COLUMN market VARCHAR(10) DEFAULT 'KR' AFTER ticker_symbol;
 
 ALTER TABLE daily_summary ADD COLUMN market VARCHAR(10) DEFAULT NULL AFTER report_date;
+
+-- 1시간봉 캔들 데이터 컬럼 추가
+ALTER TABLE daily_stock_report ADD COLUMN hourly_candles JSON DEFAULT NULL AFTER near_high;

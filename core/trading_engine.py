@@ -95,6 +95,7 @@ class StockCandidate:
     is_leader: bool = False
     market_suffix: str = "KS"  # yfinance suffix: KS=KOSPI, KQ=KOSDAQ
     supply_history: list = field(default_factory=list)  # 최근 5일 수급 현황
+    hourly_candles: list = field(default_factory=list)  # 1시간봉 캔들 데이터
 
 
 @dataclass
@@ -139,6 +140,37 @@ class AnalysisEngine:
         if trading_val < self.cfg.MIN_TRADING_VALUE:
             return False
         return True
+
+    # ── 1시간봉 캔들 데이터 조회 ──
+    def fetch_hourly_candles(self, stk_cd: str) -> list[dict]:
+        """ka10080 연속조회로 1시간봉 1주일치(약 30~35개) 수집"""
+        try:
+            raw = self.api.get_minute_chart_pages(
+                stk_cd, tic_scope="60", max_pages=3,
+            )
+            if not raw:
+                return []
+
+            candles = []
+            for item in raw:
+                cntr_tm = item.get("cntr_tm", "")
+                if len(cntr_tm) < 12:
+                    continue
+                candles.append({
+                    "time": f"{cntr_tm[:4]}-{cntr_tm[4:6]}-{cntr_tm[6:8]}T{cntr_tm[8:10]}:{cntr_tm[10:12]}",
+                    "open": abs(self.parse_price(item.get("open_pric", "0"))),
+                    "high": abs(self.parse_price(item.get("high_pric", "0"))),
+                    "low": abs(self.parse_price(item.get("low_pric", "0"))),
+                    "close": abs(self.parse_price(item.get("cur_prc", "0"))),
+                    "volume": abs(self.parse_price(item.get("trde_qty", "0"))),
+                })
+
+            # API 응답은 최신순 → 오래된순으로 정렬
+            candles.sort(key=lambda x: x["time"])
+            return candles
+        except Exception as e:
+            logger.warning(f"1시간봉 조회 실패 [{stk_cd}]: {e}")
+            return []
 
     # ── 이동평균 정배열 판단 ──
     def check_ma_alignment(self, stk_cd: str) -> tuple[bool, bool]:
