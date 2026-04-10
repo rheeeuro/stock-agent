@@ -14,19 +14,19 @@ import { Card, CardContent } from "@/components/ui/card";
 
 async function getReportByDate(date: string): Promise<DailySummary | null> {
   return apiFetch(`/api/daily-summary/${date}`, null, {
-    next: { revalidate: 3600 },
+    next: { revalidate: 600 },
   } as RequestInit);
 }
 
 async function getStockReports(date: string): Promise<StockReport[]> {
   return apiFetch(`/api/stock-report/${date}`, [], {
-    next: { revalidate: 3600 },
+    next: { revalidate: 600 },
   } as RequestInit);
 }
 
 async function getSectorReports(date: string): Promise<SectorReport[]> {
   return apiFetch(`/api/sector-report/${date}`, [], {
-    next: { revalidate: 3600 },
+    next: { revalidate: 600 },
   } as RequestInit);
 }
 
@@ -103,6 +103,11 @@ export default async function ReportPage({ params }: { params: { date: string } 
               <span className="text-sm text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
                 TOP {sectorReports.length}
               </span>
+              {sectorReports[0]?.created_at && (
+                <span className="ml-auto text-xs text-slate-400">
+                  {new Date(sectorReports[0].created_at).getHours()}시 {new Date(sectorReports[0].created_at).getMinutes()}분 기준
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -184,6 +189,11 @@ export default async function ReportPage({ params }: { params: { date: string } 
               <span className="text-sm text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
                 {stockReports.length}개 종목
               </span>
+              {stockReports[0]?.created_at && (
+                <span className="ml-auto text-xs text-slate-400">
+                  {new Date(stockReports[0].created_at).getHours()}시 {new Date(stockReports[0].created_at).getMinutes()}분 기준
+                </span>
+              )}
             </div>
 
             <div className="space-y-3">

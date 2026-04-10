@@ -177,9 +177,9 @@ class ClosingBetStrategy:
         # 오늘의 테마주 여부 마킹
         theme_codes = set()
         for codes in self.strategy_cfg.WATCHLIST_SECTORS.values():
-            theme_codes.update(codes)
+            theme_codes.update(code.split("_")[0] for code in codes)
         for c in filtered:
-            c.is_theme_stock = c.code in theme_codes
+            c.is_theme_stock = c.code.split("_")[0] in theme_codes
 
         for c in filtered:
             self.engine.score_candidate(c)
@@ -200,7 +200,7 @@ class ClosingBetStrategy:
             )
 
         # Phase 2 결과를 DB에 저장
-        self._save_phase2_reports(filtered)
+        self._save_phase2_reports(filtered[:10])
 
         return filtered
 
