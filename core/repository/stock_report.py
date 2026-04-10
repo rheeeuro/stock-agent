@@ -19,8 +19,8 @@ def save_stock_reports(candidates: list[dict]):
              trading_value, market_cap, supply_grade, inst_net_buy, frgn_net_buy,
              indv_net_buy, prog_net_buy, supply_days, supply_history,
              ma_aligned, near_high, hourly_candles,
-             is_leader, score, rank_no)
-            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             is_leader, is_theme_stock, score, rank_no)
+            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         for c in candidates:
             supply_history_json = json.dumps(
@@ -37,7 +37,8 @@ def save_stock_reports(candidates: list[dict]):
                 c["indv_net_buy"], c["prog_net_buy"], c["supply_days"],
                 supply_history_json,
                 c["ma_aligned"], c["near_high"], hourly_candles_json,
-                c["is_leader"], c["score"], c["rank_no"],
+                c["is_leader"], c.get("is_theme_stock", False),
+                c["score"], c["rank_no"],
             ))
         conn.commit()
 
@@ -112,7 +113,7 @@ def _serialize_dates(row: dict):
     if isinstance(row.get("created_at"), datetime):
         row["created_at"] = row["created_at"].isoformat()
     # boolean 변환 (MariaDB TINYINT → Python bool)
-    for key in ("ma_aligned", "near_high", "is_leader"):
+    for key in ("ma_aligned", "near_high", "is_leader", "is_theme_stock"):
         if key in row:
             row[key] = bool(row[key])
     # supply_history JSON 파싱

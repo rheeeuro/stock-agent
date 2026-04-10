@@ -174,6 +174,13 @@ class ClosingBetStrategy:
 
         filtered = self.engine.identify_sector_leaders(filtered)
 
+        # 오늘의 테마주 여부 마킹
+        theme_codes = set()
+        for codes in self.strategy_cfg.WATCHLIST_SECTORS.values():
+            theme_codes.update(codes)
+        for c in filtered:
+            c.is_theme_stock = c.code in theme_codes
+
         for c in filtered:
             self.engine.score_candidate(c)
 
@@ -189,6 +196,7 @@ class ClosingBetStrategy:
                 f"기관={c.inst_net_buy/1e8:+,.0f}억  "
                 f"외인={c.frgn_net_buy/1e8:+,.0f}억  "
                 f"{'★대장' if c.is_leader else ''}"
+                f"{'🔥테마' if c.is_theme_stock else ''}"
             )
 
         # Phase 2 결과를 DB에 저장
@@ -220,6 +228,7 @@ class ClosingBetStrategy:
                 "ma_aligned": c.ma_aligned,
                 "near_high": c.near_high,
                 "is_leader": c.is_leader,
+                "is_theme_stock": c.is_theme_stock,
                 "score": c.score,
                 "rank_no": i,
             })

@@ -82,8 +82,9 @@ CREATE TABLE IF NOT EXISTS daily_stock_report (
     near_high TINYINT(1) DEFAULT 0,
     hourly_candles JSON DEFAULT NULL,       -- 1시간봉 캔들 데이터 (1주일치)
 
-    -- 대장주 / 점수
+    -- 대장주 / 테마주 / 점수
     is_leader TINYINT(1) DEFAULT 0,
+    is_theme_stock TINYINT(1) DEFAULT 0,
     score FLOAT DEFAULT 0.0,
     rank_no INT DEFAULT 0,
 

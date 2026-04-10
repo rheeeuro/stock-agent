@@ -99,6 +99,7 @@ export interface StockReport {
   near_high: boolean;
   hourly_candles: HourlyCandleItem[];
   is_leader: boolean;
+  is_theme_stock: boolean;
   score: number;
   rank_no: number;
   created_at?: string;

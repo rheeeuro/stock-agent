@@ -51,6 +51,7 @@ class StockReport(BaseModel):
     near_high: bool = False
     hourly_candles: List[HourlyCandleItem] = []
     is_leader: bool = False
+    is_theme_stock: bool = False
     score: float = 0.0
     rank_no: int = 0
     created_at: Optional[str] = None

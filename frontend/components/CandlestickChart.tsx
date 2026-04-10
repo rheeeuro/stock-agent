@@ -136,7 +136,13 @@ export function CandlestickChart({ data }: { data: CandleData[] }) {
       maSeries.setData(maData);
     });
 
-    chart.timeScale().fitContent();
+    // 최근 1주일치 데이터만 보이도록 초기 줌 설정
+    const lastTime = candleData[candleData.length - 1].time;
+    const oneWeekAgo = lastTime - 7 * 24 * 60 * 60;
+    chart.timeScale().setVisibleRange({
+      from: oneWeekAgo as UTCTimestamp,
+      to: lastTime as UTCTimestamp,
+    });
 
     const container = chartContainerRef.current;
     const resizeObserver = new ResizeObserver((entries) => {

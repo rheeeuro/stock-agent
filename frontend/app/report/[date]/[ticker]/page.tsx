@@ -444,6 +444,11 @@ export default async function StockReportPage({
                 max={10}
               />
               <ScoreRow
+                label="오늘의 테마주"
+                value={r.is_theme_stock ? 15 : 0}
+                max={15}
+              />
+              <ScoreRow
                 label="연속 수급"
                 value={Math.min(r.supply_days, 5) * 3}
                 max={15}
@@ -453,7 +458,7 @@ export default async function StockReportPage({
                   총합
                 </span>
                 <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {r.score.toFixed(0)} / 100
+                  {r.score.toFixed(0)} / 115
                 </span>
               </div>
             </div>

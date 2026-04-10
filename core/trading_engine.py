@@ -60,8 +60,9 @@ class StrategyConfig:
 
     # ---- 관심 섹터 (API 동적 로드, ka90001 + ka90002) ----
     WATCHLIST_SECTORS: dict[str, list[str]] = {}
-    TOP_THEME_COUNT = 7           # 상위 테마 그룹 수
+    TOP_THEME_COUNT = 8           # 상위 테마 그룹 수
     THEME_PERIOD_DAYS = "10"      # 기간수익률 기준 일수
+    THEME_STOCK_BONUS = 15        # 오늘의 테마주 가산점
 
     EXCLUDE_KEYWORDS = ["ETF", "ETN", "KODEX", "TIGER", "KBSTAR",
                         "ARIRANG", "SOL", "HANARO", "RISE"]
@@ -93,6 +94,7 @@ class StockCandidate:
     supply_days: int = 0
     score: float = 0.0
     is_leader: bool = False
+    is_theme_stock: bool = False
     market_suffix: str = "KS"  # yfinance suffix: KS=KOSPI, KQ=KOSDAQ
     supply_history: list = field(default_factory=list)  # 최근 5일 수급 현황
     hourly_candles: list = field(default_factory=list)  # 1시간봉 캔들 데이터
@@ -381,6 +383,10 @@ class AnalysisEngine:
         # 대장주 (10점)
         if c.is_leader:
             score += 10
+
+        # 오늘의 테마주 가산점
+        if c.is_theme_stock:
+            score += self.cfg.THEME_STOCK_BONUS
 
         # 연속 수급 (15점)
         score += min(c.supply_days, 5) * 3

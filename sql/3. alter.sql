@@ -50,3 +50,6 @@ ALTER TABLE daily_summary ADD COLUMN market VARCHAR(10) DEFAULT NULL AFTER repor
 
 -- 1시간봉 캔들 데이터 컬럼 추가
 ALTER TABLE daily_stock_report ADD COLUMN hourly_candles JSON DEFAULT NULL AFTER near_high;
+
+-- 오늘의 테마주 여부 컬럼 추가
+ALTER TABLE daily_stock_report ADD COLUMN is_theme_stock TINYINT(1) DEFAULT 0 AFTER is_leader;

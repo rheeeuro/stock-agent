@@ -216,6 +216,9 @@ export default async function ReportPage({ params }: { params: { date: string } 
                               {r.is_leader && (
                                 <Crown className="w-4 h-4 text-amber-500" />
                               )}
+                              {r.is_theme_stock && (
+                                <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-950 px-1.5 py-0.5 rounded">테마</span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs text-slate-500">
