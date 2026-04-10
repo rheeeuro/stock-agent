@@ -263,7 +263,7 @@ class KiwoomRestAPI:
             "trde_qty_tp": "0000",
             "stk_cnd": "1",
             "crd_cnd": "0",
-            "stex_tp": "1",
+            "stex_tp": "3",
         })
 
     def get_theme_groups(self, date_tp: str = "10", flu_pl_amt_tp: str = "1",
@@ -309,7 +309,7 @@ class KiwoomRestAPI:
             "trde_qty_tp": "0000",
             "stk_cnd": "1",
             "crd_cnd": "0",
-            "stex_tp": "1",
+            "stex_tp": "3",
         })
 
     # ────────────────────────────────────────────

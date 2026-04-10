@@ -260,7 +260,7 @@ class AnalysisEngine:
                 result["frgn_net_buy"] = self.parse_price(
                     today.get("frgnr_invsr", "0")) * 1_000_000
                 result["indv_net_buy"] = self.parse_price(
-                    today.get("indvd", "0")) * 1_000_000
+                    today.get("ind_invsr", "0")) * 1_000_000
 
                 # 최근 5일 수급 현황 추출
                 for item in items[:5]:
@@ -273,7 +273,7 @@ class AnalysisEngine:
                         "date": formatted_dt,
                         "inst_net_buy": self.parse_price(item.get("orgn", "0")) * 1_000_000,
                         "frgn_net_buy": self.parse_price(item.get("frgnr_invsr", "0")) * 1_000_000,
-                        "indv_net_buy": self.parse_price(item.get("indvd", "0")) * 1_000_000,
+                        "indv_net_buy": self.parse_price(item.get("ind_invsr", "0")) * 1_000_000,
                     })
             else:
                 logger.debug(f"[{stk_cd}] ka10059 stk_invsr_orgn 비어있음")

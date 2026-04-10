@@ -210,7 +210,7 @@ class ClosingBetStrategy:
         reports = []
         for i, c in enumerate(candidates, 1):
             reports.append({
-                "stock_code": f"{c.code}.{c.market_suffix}",
+                "stock_code": f"{c.code.split('_')[0]}.{c.market_suffix}",
                 "stock_name": c.name,
                 "sector": c.sector,
                 "current_price": c.current_price,
