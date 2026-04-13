@@ -98,10 +98,19 @@ class ClosingBetStrategy:
                     tv = abs(self.engine.parse_price(item.get("trde_prica", "0"))) * 1_000_000
                     cp = abs(self.engine.parse_price(item.get("cur_prc", "0")))
                     chg = self.engine.parse_float(item.get("flu_rt", "0"))
-                    mc = 0
 
                     if code in seen_codes:
                         continue
+
+                    # 시가총액은 거래대금순위 API에 없으므로 개별 조회
+                    try:
+                        info = self.api.get_stock_basic_info(code)
+                        mc_raw = self.engine.parse_price(info.get("mac", "0"))
+                        mc = mc_raw * 100_000_000
+                        time.sleep(0.3)
+                    except Exception:
+                        mc = 0
+
                     if not self.engine.filter_basic(name, tv, mc):
                         continue
 
@@ -119,7 +128,8 @@ class ClosingBetStrategy:
 
         # (b) 관심섹터 종목 보강
         for sector, codes in self.strategy_cfg.WATCHLIST_SECTORS.items():
-            for code in codes:
+            for raw_code in codes:
+                code = raw_code.split("_")[0]
                 if code in seen_codes:
                     continue
                 try:

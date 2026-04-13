@@ -59,9 +59,12 @@ def _search_ticker_online(company_name, market='KR'):
 
 
 def _get_single_ticker(company_name, market='KR'):
-    """dictionary 조회 → 없으면 온라인 검색 → 결과를 dictionary에 PENDING으로 저장"""
+    """dictionary 조회 → INACTIVE면 스킵 → 없으면 온라인 검색 → 결과를 dictionary에 PENDING으로 저장"""
     cached = lookup_ticker(company_name)
-    if cached and cached["status"] != "INACTIVE":
+    if cached:
+        if cached["status"] == "INACTIVE":
+            logging.info(f"🚫 INACTIVE 티커 스킵: {company_name} → {cached['ticker_symbol']}")
+            return None
         logging.info(f"📖 Dictionary 캐시 히트: {company_name} → {cached['ticker_symbol']}")
         return cached["ticker_symbol"]
 

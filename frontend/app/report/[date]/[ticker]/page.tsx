@@ -298,10 +298,10 @@ export default async function StockReportPage({
                       개인
                     </th>
                     <th className="text-right py-3 px-2 text-slate-500 font-medium">
-                      기관
+                      외국인
                     </th>
                     <th className="text-right py-3 px-2 text-slate-500 font-medium">
-                      외국인
+                      기관
                     </th>
                   </tr>
                 </thead>
@@ -320,7 +320,7 @@ export default async function StockReportPage({
                           {h.date}
                           {i === 0 && (
                             <span className="ml-1 text-xs text-indigo-500">
-                              (today)
+                              (오늘)
                             </span>
                           )}
                         </td>
@@ -328,10 +328,10 @@ export default async function StockReportPage({
                           <NetBuyCell value={h.indv_net_buy} />
                         </td>
                         <td className="text-right py-3 px-2">
-                          <NetBuyCell value={h.inst_net_buy} />
+                          <NetBuyCell value={h.frgn_net_buy} />
                         </td>
                         <td className="text-right py-3 px-2">
-                          <NetBuyCell value={h.frgn_net_buy} />
+                          <NetBuyCell value={h.inst_net_buy} />
                         </td>
                       </tr>
                     ))
