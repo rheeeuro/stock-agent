@@ -6,9 +6,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Crown,
-  TrendingUp,
-  TrendingDown,
-  Minus,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -196,71 +193,53 @@ export default async function ReportPage({ params }: { params: { date: string } 
               )}
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {stockReports.map((r) => {
                 const isUp = r.change_pct > 0;
                 const isDown = r.change_pct < 0;
-                const ChangeIcon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
 
                 return (
                   <Link key={r.stock_code} href={`/report/${date}/${r.stock_code}`}>
-                    <Card className="border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer group my-3">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          {/* 순위 */}
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
-                            <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
-                              {r.rank_no}
-                            </span>
-                          </div>
-
-                          {/* 종목명 & 섹터 */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                {r.stock_name}
-                              </span>
-                              <span className="text-xs text-slate-400 font-mono">
-                                {r.stock_code}
-                              </span>
-                              {r.is_leader && (
-                                <Crown className="w-4 h-4 text-amber-500" />
-                              )}
-                              {r.is_theme_stock && (
-                                <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-950 px-1.5 py-0.5 rounded">테마</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-slate-500">
-                                {r.sector}
-                              </span>
-                              <span className="text-xs text-slate-400">|</span>
-                              <span className="text-xs text-slate-500">
-                                거래대금{" "}
-                                {(r.trading_value / 1e8).toLocaleString("ko-KR", { maximumFractionDigits: 0 })}억
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* 수급등급 */}
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${GRADE_STYLE[r.supply_grade] || GRADE_STYLE.C}`}>
-                            {r.supply_grade}
+                    <Card className="border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer group">
+                      <CardContent className="p-3 sm:p-4">
+                        {/* 상단: 순위 + 종목명 + 배지 */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
+                            {r.rank_no}
                           </span>
+                          <span className="font-bold text-sm sm:text-base text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                            {r.stock_name}
+                          </span>
+                          {r.is_leader && (
+                            <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          )}
+                          {r.is_theme_stock && (
+                            <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-950 px-1 py-0.5 rounded shrink-0">테마</span>
+                          )}
+                        </div>
 
-                          {/* 등락 */}
-                          <div className="flex items-center gap-1 w-20 justify-end">
-                            <ChangeIcon className={`w-4 h-4 ${isUp ? "text-red-500" : isDown ? "text-blue-500" : "text-slate-400"}`} />
-                            <span className={`text-sm font-semibold ${isUp ? "text-red-600 dark:text-red-400" : isDown ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>
-                              {isUp ? "+" : ""}{r.change_pct.toFixed(1)}%
-                            </span>
-                          </div>
+                        {/* 중단: 섹터 + 거래대금 */}
+                        <div className="flex items-center gap-1.5 mb-2 text-xs text-slate-500">
+                          <span className="truncate">{r.sector}</span>
+                          <span className="text-slate-400 shrink-0">|</span>
+                          <span className="shrink-0">
+                            {(r.trading_value / 1e8).toLocaleString("ko-KR", { maximumFractionDigits: 0 })}억
+                          </span>
+                        </div>
 
-                          {/* 점수 */}
-                          <div className="w-16 text-right">
-                            <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+                        {/* 하단: 수급등급 + 등락 + 점수 */}
+                        <div className="flex items-center justify-between">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${GRADE_STYLE[r.supply_grade] || GRADE_STYLE.C}`}>
+                            수급{r.supply_grade}
+                          </span>
+                          <span className={`text-xs sm:text-sm font-semibold ${isUp ? "text-red-600 dark:text-red-400" : isDown ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>
+                            {isUp ? "+" : ""}{r.change_pct.toFixed(1)}%
+                          </span>
+                          <div className="text-right">
+                            <span className="text-sm sm:text-base font-bold text-indigo-600 dark:text-indigo-400">
                               {r.score.toFixed(0)}
                             </span>
-                            <span className="text-xs text-slate-400">점</span>
+                            <span className="text-[10px] sm:text-xs text-slate-400">점</span>
                           </div>
                         </div>
                       </CardContent>

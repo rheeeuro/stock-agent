@@ -171,11 +171,13 @@ export default async function StockReportPage({
 
         {/* 헤더 */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-              {r.stock_name}
-            </h1>
-            <span className="text-lg text-slate-400 font-mono">{r.stock_code}</span>
+          <div className="flex flex-col items-start sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {r.stock_name}
+              </h1>
+              <span className="text-lg text-slate-400 font-mono">{r.stock_code}</span>
+            </div>
             <StockPriceBadge ticker={r.stock_code} />
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">
