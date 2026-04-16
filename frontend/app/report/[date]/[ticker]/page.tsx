@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FixedLossCalculator } from "@/components/FixedLossCalculator";
 
 async function getReportDetail(
   date: string,
@@ -167,6 +168,9 @@ export default async function StockReportPage({
             <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
           </Link>
           <span className="text-sm text-slate-500">{date} 종목 리포트</span>
+          <div className="ml-auto">
+            <FixedLossCalculator ticker={r.stock_code} />
+          </div>
         </div>
 
         {/* 헤더 */}
