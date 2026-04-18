@@ -35,6 +35,7 @@ class ClosingBetStrategy:
     def __init__(self):
         self.api_cfg = KiwoomConfig()
         self.strategy_cfg = StrategyConfig()
+        self.strategy_cfg.load_from_db()
         self.api = KiwoomRestAPI(self.api_cfg)
         self.engine = AnalysisEngine(self.api, self.strategy_cfg)
         self.executor = OrderExecutor(self.api, self.strategy_cfg)

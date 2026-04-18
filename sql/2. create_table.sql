@@ -103,6 +103,14 @@ CREATE TABLE IF NOT EXISTS daily_stock_report (
     INDEX idx_stock_code (stock_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 전략 설정 (단일 행, JSON으로 관리)
+CREATE TABLE IF NOT EXISTS strategy_config (
+    id INT PRIMARY KEY DEFAULT 1,
+    config JSON NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS daily_sector_report (
     id             INT AUTO_INCREMENT PRIMARY KEY,
     report_date    DATE NOT NULL,

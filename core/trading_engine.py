@@ -70,6 +70,18 @@ class StrategyConfig:
     # ---- 콘텐츠 분석 가산점 ----
     CONTENT_SCORE_MAX = 10            # 콘텐츠 분석 최대 가산점
 
+    def load_from_db(self):
+        """DB에서 전략 설정값을 로드하여 인스턴스에 덮어씀"""
+        try:
+            from core.repository.strategy_config import get_strategy_config
+            config = get_strategy_config()
+            for key, value in config.items():
+                if hasattr(self, key) and key != "WATCHLIST_SECTORS":
+                    setattr(self, key, value)
+            logger.info("전략 설정 DB 로드 완료")
+        except Exception as e:
+            logger.warning(f"전략 설정 DB 로드 실패, 기본값 사용: {e}")
+
 
 class SupplyGrade(Enum):
     S = "외국인+기관 양매수"

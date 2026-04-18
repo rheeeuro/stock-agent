@@ -41,6 +41,11 @@ from core.repository.sector_report import (
     get_sector_report_dates,
 )
 
+from core.repository.strategy_config import (
+    get_strategy_config,
+    update_strategy_config,
+)
+
 from core.repository.ticker import (
     lookup_ticker,
     lookup_name_by_ticker,

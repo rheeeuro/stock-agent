@@ -12,6 +12,7 @@ from routers.contents import router as contents_router
 from routers.daily_summary import router as daily_summary_router
 from routers.market import router as market_router
 from routers.stock_report import router as stock_report_router
+from routers.strategy_config import router as strategy_config_router
 from routers.ticker import router as ticker_router
 
 app = FastAPI()
@@ -32,6 +33,7 @@ app.include_router(contents_router)
 app.include_router(daily_summary_router)
 app.include_router(market_router)
 app.include_router(stock_report_router)
+app.include_router(strategy_config_router)
 app.include_router(ticker_router)
 
 
