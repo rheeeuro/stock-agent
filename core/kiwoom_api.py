@@ -9,6 +9,7 @@
   au10001  접근토큰 발급          POST /oauth2/token
   au10002  접근토큰 폐기          POST /oauth2/token
   ka10001  주식기본정보요청        POST /api/dostk/stkinfo
+  ka10100  종목정보조회            POST /api/dostk/stkinfo
   ka10002  주식거래원요청          POST /api/dostk/stkinfo
   ka10032  거래대금상위요청        POST /api/dostk/rkinfo
   ka10059  종목별투자자기관별요청  POST /api/dostk/stkinfo
@@ -169,6 +170,16 @@ class KiwoomRestAPI:
               trde_qty, flo_stk, oyr_hgst, oyr_lwst, 250hgst, 250lwst 등
         """
         return self._post(self.cfg.URL_STKINFO, "ka10001", {
+            "stk_cd": stk_cd,
+        })
+
+    def get_stock_detail_info(self, stk_cd: str) -> dict:
+        """
+        ka10100 — 종목정보조회
+        응답: code, name, upName(업종명), upSizeName(회사크기분류),
+              marketName(시장명), companyClassName, listCount 등
+        """
+        return self._post(self.cfg.URL_STKINFO, "ka10100", {
             "stk_cd": stk_cd,
         })
 

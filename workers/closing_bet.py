@@ -377,9 +377,18 @@ class ClosingBetStrategy:
 
     # ── 유틸 ──
     def _find_sector(self, code: str) -> str:
+        code_base = code.split("_")[0]
         for sector, codes in self.strategy_cfg.WATCHLIST_SECTORS.items():
-            if code in codes:
+            if any(c.split("_")[0] == code_base for c in codes):
                 return sector
+        # 테마 미매칭 시 ka10100 업종명 조회
+        try:
+            info = self.api.get_stock_detail_info(code_base)
+            up_name = info.get("upName", "").strip()
+            if up_name:
+                return up_name
+        except Exception as e:
+            logger.warning(f"업종명 조회 실패 [{code_base}]: {e}")
         return "기타"
 
     def _wait_until(self, time_str: str):
