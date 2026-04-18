@@ -9,6 +9,7 @@ from core.repository import (
     get_stock_reports_by_date,
     get_stock_report_dates,
     get_sector_reports_by_date,
+    get_content_by_stock_and_date,
 )
 
 router = APIRouter(prefix="/api", tags=["stock-report"])
@@ -52,13 +53,26 @@ class StockReport(BaseModel):
     hourly_candles: List[HourlyCandleItem] = []
     is_leader: bool = False
     is_theme_stock: bool = False
+    content_score: float = 0.0
     score: float = 0.0
     rank_no: int = 0
     created_at: Optional[str] = None
 
 
+class ContentAnalysisItem(BaseModel):
+    id: int
+    title: str = ""
+    analysis_content: str = ""
+    sentiment_score: int = 50
+    source_name: str = ""
+    platform: str = ""
+    source_url: Optional[str] = None
+    created_at: Optional[str] = None
+
+
 class StockReportDetail(BaseModel):
     report: StockReport
+    content_analyses: List[ContentAnalysisItem] = []
 
 
 class SectorStock(BaseModel):
@@ -139,7 +153,11 @@ def get_report_detail(report_date: str, stock_code: str):
         if not report:
             raise HTTPException(status_code=404, detail="해당 리포트가 없습니다")
 
-        return {"report": report}
+        content_analyses = get_content_by_stock_and_date(
+            stock_code, report_date
+        )
+
+        return {"report": report, "content_analyses": content_analyses}
     except HTTPException:
         raise
     except Exception as e:

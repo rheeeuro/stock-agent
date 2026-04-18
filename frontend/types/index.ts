@@ -100,13 +100,26 @@ export interface StockReport {
   hourly_candles: HourlyCandleItem[];
   is_leader: boolean;
   is_theme_stock: boolean;
+  content_score: number;
   score: number;
   rank_no: number;
   created_at?: string;
 }
 
+export interface ContentAnalysisItem {
+  id: number;
+  title: string;
+  analysis_content: string;
+  sentiment_score: number;
+  source_name: string;
+  platform: string;
+  source_url?: string;
+  created_at?: string;
+}
+
 export interface StockReportDetail {
   report: StockReport;
+  content_analyses?: ContentAnalysisItem[];
 }
 
 export interface SectorStock {

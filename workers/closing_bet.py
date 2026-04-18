@@ -22,6 +22,7 @@ from core.trading_engine import (
 )
 from core.repository.stock_report import save_stock_reports
 from core.repository.sector_report import save_sector_reports
+from core.repository.content import get_today_content_by_stock
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ClosingBet")
@@ -191,6 +192,22 @@ class ClosingBetStrategy:
         for c in filtered:
             c.is_theme_stock = c.code.split("_")[0] in theme_codes
 
+        # 콘텐츠 분석 반영 (오늘 관련 콘텐츠 건수 + 평균 sentiment)
+        for c in filtered:
+            stock_code_full = f"{c.code.split('_')[0]}.{c.market_suffix}"
+            try:
+                contents = get_today_content_by_stock(stock_code_full)
+                if contents:
+                    c.content_count = len(contents)
+                    scores = [ct["sentiment_score"] for ct in contents]
+                    c.content_avg_score = sum(scores) / len(scores)
+                    logger.info(
+                        f"[{c.name}] 콘텐츠 분석 {c.content_count}건, "
+                        f"평균 감성점수 {c.content_avg_score:.0f}"
+                    )
+            except Exception as e:
+                logger.warning(f"콘텐츠 분석 조회 실패 [{c.name}]: {e}")
+
         for c in filtered:
             self.engine.score_candidate(c)
 
@@ -239,6 +256,7 @@ class ClosingBetStrategy:
                 "near_high": c.near_high,
                 "is_leader": c.is_leader,
                 "is_theme_stock": c.is_theme_stock,
+                "content_score": self._calc_content_score(c),
                 "score": c.score,
                 "rank_no": i,
             })
@@ -347,6 +365,15 @@ class ClosingBetStrategy:
                 logger.info(f"  {name}: {len(codes)}종목")
         else:
             logger.warning("테마 API 응답 없음 — 관심섹터 보강 없이 진행")
+
+    @staticmethod
+    def _calc_content_score(c: StockCandidate) -> float:
+        """콘텐츠 분석 점수 계산 (score_candidate 로직과 동일)"""
+        if c.content_count <= 0:
+            return 0.0
+        mention_bonus = min(c.content_count, 3) * 2
+        sentiment_bonus = 4 if c.content_avg_score >= 70 else 2 if c.content_avg_score >= 50 else 0
+        return min(mention_bonus + sentiment_bonus, 10)
 
     # ── 유틸 ──
     def _find_sector(self, code: str) -> str:

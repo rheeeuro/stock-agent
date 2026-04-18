@@ -1,4 +1,4 @@
-import { StockReportDetail, SupplyHistoryItem } from "@/types";
+import { StockReportDetail, SupplyHistoryItem, ContentAnalysisItem } from "@/types";
 import { StockPriceBadge } from "@/components/StockPriceBadge";
 import { CandlestickChart } from "@/components/CandlestickChart";
 import { apiFetch } from "@/lib/api";
@@ -13,6 +13,10 @@ import {
   Activity,
   CheckCircle2,
   XCircle,
+  Newspaper,
+  ExternalLink,
+  Youtube,
+  MessageCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FixedLossCalculator } from "@/components/FixedLossCalculator";
@@ -153,8 +157,14 @@ export default async function StockReportPage({
     );
   }
 
-  const { report: r } = data;
+  const { report: r, content_analyses: contentAnalyses = [] } = data;
   const supplyHistory = r.supply_history ?? [];
+
+  const contentCount = contentAnalyses.length;
+  const contentAvgScore =
+    contentCount > 0
+      ? contentAnalyses.reduce((s, c) => s + (c.sentiment_score ?? 50), 0) / contentCount
+      : 0;
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-8 dark:bg-slate-950">
@@ -400,7 +410,96 @@ export default async function StockReportPage({
           </CardContent>
         </Card>
 
-        {/* 5. 점수 상세 (점수 브레이크다운) */}
+        {/* 5. 콘텐츠 분석 (유튜브/텔레그램) */}
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Newspaper className="w-5 h-5 text-slate-500" />
+              콘텐츠 분석
+              {contentCount > 0 && (
+                <span className="ml-auto text-sm font-normal text-slate-500">
+                  {contentCount}건 / 평균 감성점수{" "}
+                  <span
+                    className={`font-bold ${
+                      contentAvgScore >= 60
+                        ? "text-red-600 dark:text-red-400"
+                        : contentAvgScore >= 40
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-blue-600 dark:text-blue-400"
+                    }`}
+                  >
+                    {contentAvgScore.toFixed(0)}
+                  </span>
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contentCount > 0 ? (
+              <div className="space-y-3">
+                {contentAnalyses.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {c.platform === "youtube" ? (
+                          <Youtube className="w-4 h-4 text-red-500 shrink-0" />
+                        ) : (
+                          <MessageCircle className="w-4 h-4 text-sky-500 shrink-0" />
+                        )}
+                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                          {c.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                            c.sentiment_score >= 60
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                              : c.sentiment_score >= 40
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                          }`}
+                        >
+                          {c.sentiment_score}점
+                        </span>
+                        {c.source_url && (
+                          <a
+                            href={c.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-400 hover:text-indigo-500 transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {c.source_name}
+                      {c.created_at && (
+                        <span className="ml-2">
+                          {new Date(c.created_at).toLocaleTimeString("ko-KR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-6 text-center text-slate-400">
+                해당 종목에 대한 오늘자 콘텐츠 분석이 없습니다
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 6. 점수 상세 (점수 브레이크다운) */}
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -459,12 +558,17 @@ export default async function StockReportPage({
                 value={Math.min(r.supply_days, 5) * 3}
                 max={15}
               />
+              <ScoreRow
+                label="콘텐츠 분석"
+                value={r.content_score}
+                max={10}
+              />
               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   총합
                 </span>
                 <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {r.score.toFixed(0)} / 115
+                  {r.score.toFixed(0)} / 125
                 </span>
               </div>
             </div>

@@ -67,6 +67,9 @@ class StrategyConfig:
     EXCLUDE_KEYWORDS = ["ETF", "ETN", "KODEX", "TIGER", "KBSTAR",
                         "ARIRANG", "SOL", "HANARO", "RISE"]
 
+    # ---- 콘텐츠 분석 가산점 ----
+    CONTENT_SCORE_MAX = 10            # 콘텐츠 분석 최대 가산점
+
 
 class SupplyGrade(Enum):
     S = "외국인+기관 양매수"
@@ -98,6 +101,8 @@ class StockCandidate:
     market_suffix: str = "KS"  # yfinance suffix: KS=KOSPI, KQ=KOSDAQ
     supply_history: list = field(default_factory=list)  # 최근 5일 수급 현황
     hourly_candles: list = field(default_factory=list)  # 1시간봉 캔들 데이터
+    content_count: int = 0        # 오늘 관련 콘텐츠 분석 건수
+    content_avg_score: float = 0  # 콘텐츠 평균 sentiment_score
 
 
 @dataclass
@@ -184,7 +189,7 @@ class AnalysisEngine:
             if not candles or len(candles) < 120:
                 return False, False
 
-            closes = [self.parse_price(c.get("cur_prc", "0")) for c in candles]
+            closes = [abs(self.parse_price(c.get("cur_prc", "0"))) for c in candles]
             closes = [p for p in closes if p > 0]
 
             if len(closes) < 120:
@@ -390,6 +395,16 @@ class AnalysisEngine:
 
         # 연속 수급 (15점)
         score += min(c.supply_days, 5) * 3
+
+        # 콘텐츠 분석 (10점): 언급 횟수 + 평균 감성 점수
+        if c.content_count > 0:
+            mention_bonus = min(c.content_count, 3) * 2  # max 6
+            sentiment_bonus = (
+                4 if c.content_avg_score >= 70
+                else 2 if c.content_avg_score >= 50
+                else 0
+            )
+            score += min(mention_bonus + sentiment_bonus, self.cfg.CONTENT_SCORE_MAX)
 
         c.score = score
         return score

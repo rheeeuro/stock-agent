@@ -6,23 +6,30 @@ CREATE TABLE IF NOT EXISTS channels (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS video_analysis (
+CREATE TABLE IF NOT EXISTS content_analysis (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    video_id VARCHAR(50) NOT NULL UNIQUE, -- 중복 분석 방지용
-    channel_name VARCHAR(100),
-    video_title VARCHAR(255),
-    analysis_content TEXT, -- AI 분석 결과
-    market_sentiment INT DEFAULT 0, -- (선택) 감정 점수 저장용
+    external_id VARCHAR(255) NOT NULL UNIQUE, -- 유튜브ID or 텔레그램Link
+    source_name VARCHAR(100),                 -- 채널명
+    title VARCHAR(255),                       -- 영상제목 or 메시지요약
+    analysis_content TEXT,                    -- AI 분석 결과
+    sentiment_score INT DEFAULT 50,           -- 감성 점수 (0~100, 기본 50=중립)
+    platform VARCHAR(20) DEFAULT 'youtube',   -- 'youtube', 'telegram', 'news'
+    market VARCHAR(10) DEFAULT 'UNKNOWN',     -- 'US', 'KR', 'CRYPTO', 'UNKNOWN'
+    source_url VARCHAR(255),                  -- 원문 링크
+    related_tickers VARCHAR(255) DEFAULT NULL, -- JSON 배열 [{"ticker":"...", "name":"..."}]
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_video_id (video_id)
+    INDEX idx_external_id (external_id)
 );
 
 CREATE TABLE IF NOT EXISTS daily_summary (
     id INT AUTO_INCREMENT PRIMARY KEY,
     report_date DATE NOT NULL,
+    market VARCHAR(10) DEFAULT NULL,
     buy_stock VARCHAR(100),
+    buy_ticker VARCHAR(20),
     buy_reason TEXT,
     sell_stock VARCHAR(100),
+    sell_ticker VARCHAR(20),
     sell_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -85,6 +92,7 @@ CREATE TABLE IF NOT EXISTS daily_stock_report (
     -- 대장주 / 테마주 / 점수
     is_leader TINYINT(1) DEFAULT 0,
     is_theme_stock TINYINT(1) DEFAULT 0,
+    content_score FLOAT DEFAULT 0.0,
     score FLOAT DEFAULT 0.0,
     rank_no INT DEFAULT 0,
 

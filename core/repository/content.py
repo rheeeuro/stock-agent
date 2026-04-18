@@ -124,6 +124,58 @@ def save_content_analysis(
     logging.info(f"DB 저장 완료: [{market}] {title} (점수: {score}, 티커: {related_tickers})")
 
 
+def get_today_content_by_stock(stock_code: str) -> list[dict]:
+    """오늘 날짜의 특정 종목 관련 콘텐츠 분석 조회 (ticker로 매칭)"""
+    code_part = stock_code.split(".")[0]
+    with get_db() as (conn, cursor):
+        cursor.execute(
+            """
+            SELECT id, title, analysis_content, sentiment_score,
+                   source_name, platform, source_url, created_at
+            FROM content_analysis
+            WHERE DATE(created_at) = CURDATE()
+              AND market = 'KR'
+              AND related_tickers LIKE %s
+            ORDER BY created_at DESC
+            """,
+            (f"%{code_part}%",),
+        )
+        results = cursor.fetchall()
+        for row in results:
+            if isinstance(row["created_at"], datetime):
+                row["created_at"] = row["created_at"].isoformat()
+            if row["sentiment_score"] is None:
+                row["sentiment_score"] = 50
+        return results
+
+
+def get_content_by_stock_and_date(
+    stock_code: str, report_date: str
+) -> list[dict]:
+    """특정 날짜의 특정 종목 관련 콘텐츠 분석 조회 (ticker로 매칭)"""
+    code_part = stock_code.split(".")[0]
+    with get_db() as (conn, cursor):
+        cursor.execute(
+            """
+            SELECT id, title, analysis_content, sentiment_score,
+                   source_name, platform, source_url, created_at
+            FROM content_analysis
+            WHERE DATE(created_at) = %s
+              AND market = 'KR'
+              AND related_tickers LIKE %s
+            ORDER BY created_at DESC
+            """,
+            (report_date, f"%{code_part}%"),
+        )
+        results = cursor.fetchall()
+        for row in results:
+            if isinstance(row["created_at"], datetime):
+                row["created_at"] = row["created_at"].isoformat()
+            if row["sentiment_score"] is None:
+                row["sentiment_score"] = 50
+        return results
+
+
 def get_recent_analyses(hours: int = 24, market: str | None = None) -> list[dict]:
     """최근 N시간 내 수집된 분석 데이터 조회 (일일 요약용)"""
     with get_db() as (conn, cursor):

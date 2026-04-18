@@ -19,8 +19,8 @@ def save_stock_reports(candidates: list[dict]):
              trading_value, market_cap, supply_grade, inst_net_buy, frgn_net_buy,
              indv_net_buy, prog_net_buy, supply_days, supply_history,
              ma_aligned, near_high, hourly_candles,
-             is_leader, is_theme_stock, score, rank_no)
-            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             is_leader, is_theme_stock, content_score, score, rank_no)
+            VALUES (CURDATE(), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         for c in candidates:
             supply_history_json = json.dumps(
@@ -38,6 +38,7 @@ def save_stock_reports(candidates: list[dict]):
                 supply_history_json,
                 c["ma_aligned"], c["near_high"], hourly_candles_json,
                 c["is_leader"], c.get("is_theme_stock", False),
+                c.get("content_score", 0),
                 c["score"], c["rank_no"],
             ))
         conn.commit()
