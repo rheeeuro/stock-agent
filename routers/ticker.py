@@ -2,6 +2,7 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+import mysql.connector
 
 from core.repository import get_ticker_dictionary, update_ticker, delete_ticker
 
@@ -32,7 +33,12 @@ def update_ticker_dict(ticker_id: int, body: TickerDictionaryUpdate):
     """ticker dictionary 항목 수정"""
     if body.status not in ("PENDING", "ACTIVE", "INACTIVE"):
         raise HTTPException(status_code=400, detail="status는 PENDING, ACTIVE, INACTIVE 중 하나여야 합니다.")
-    success = update_ticker(ticker_id, body.company_name, body.ticker_symbol, body.market, body.status)
+    try:
+        success = update_ticker(ticker_id, body.company_name, body.ticker_symbol, body.market, body.status)
+    except mysql.connector.IntegrityError as e:
+        if e.errno == 1062:
+            raise HTTPException(status_code=409, detail=f"이미 등록된 기업명입니다: {body.company_name}")
+        raise HTTPException(status_code=400, detail=str(e))
     if not success:
         raise HTTPException(status_code=404, detail="해당 항목을 찾을 수 없습니다.")
     return {"success": True}

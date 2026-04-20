@@ -63,6 +63,8 @@ export default function TickerDictionaryPage() {
     market: "KR" as string,
     status: "PENDING" as string,
   });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<TickerDictionary | null>(
     null
@@ -98,25 +100,56 @@ export default function TickerDictionaryPage() {
       market: item.market,
       status: item.status,
     });
+    setEditError(null);
   };
 
+  const hasEditChanges = !!editItem && (
+    editForm.company_name.trim() !== editItem.company_name ||
+    editForm.ticker_symbol.trim() !== editItem.ticker_symbol ||
+    editForm.market !== editItem.market ||
+    editForm.status !== editItem.status
+  );
+  const canSaveEdit =
+    hasEditChanges &&
+    editForm.company_name.trim().length > 0 &&
+    editForm.ticker_symbol.trim().length > 0;
+
   const handleSave = async () => {
-    if (!editItem) return;
+    if (!editItem || !canSaveEdit) return;
+    setEditSaving(true);
+    setEditError(null);
     try {
       const res = await fetch(
         `/api/ticker-dictionary/${editItem.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editForm),
+          body: JSON.stringify({
+            company_name: editForm.company_name.trim(),
+            ticker_symbol: editForm.ticker_symbol.trim(),
+            market: editForm.market,
+            status: editForm.status,
+          }),
         }
       );
       if (res.ok) {
         setEditItem(null);
         fetchTickers();
+      } else {
+        const data = await res.json().catch(() => null);
+        setEditError(
+          data?.detail ||
+            data?.error ||
+            (res.status === 409
+              ? "이미 등록된 기업명입니다."
+              : "수정에 실패했습니다.")
+        );
       }
     } catch (e) {
       console.error("Failed to update ticker:", e);
+      setEditError("서버에 연결할 수 없습니다.");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -392,12 +425,13 @@ export default function TickerDictionaryPage() {
                 <input
                   type="text"
                   value={editForm.company_name}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setEditForm((f) => ({
                       ...f,
                       company_name: e.target.value,
-                    }))
-                  }
+                    }));
+                    setEditError(null);
+                  }}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                 />
               </div>
@@ -408,12 +442,13 @@ export default function TickerDictionaryPage() {
                 <input
                   type="text"
                   value={editForm.ticker_symbol}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setEditForm((f) => ({
                       ...f,
                       ticker_symbol: e.target.value,
-                    }))
-                  }
+                    }));
+                    setEditError(null);
+                  }}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
                 />
               </div>
@@ -469,11 +504,21 @@ export default function TickerDictionaryPage() {
                 </div>
               </div>
             </div>
+            {editError && (
+              <p className="text-sm font-medium text-red-600 dark:text-red-400 -mt-1">
+                {editError}
+              </p>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditItem(null)}>
                 취소
               </Button>
-              <Button onClick={handleSave}>저장</Button>
+              <Button
+                onClick={handleSave}
+                disabled={!canSaveEdit || editSaving}
+              >
+                {editSaving ? "저장 중..." : "저장"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
