@@ -277,7 +277,7 @@ class KiwoomRestAPI:
             "stex_tp": "3",
         })
 
-    def get_theme_groups(self, date_tp: str = "10", flu_pl_amt_tp: str = "1",
+    def get_theme_groups(self, date_tp: str = "1", flu_pl_amt_tp: str = "3",
                         stex_tp: str = "3") -> dict:
         """
         ka90001 — 테마그룹별요청

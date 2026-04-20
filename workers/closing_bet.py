@@ -300,7 +300,7 @@ class ClosingBetStrategy:
         try:
             data = self.api.get_theme_groups(
                 date_tp=cfg.THEME_PERIOD_DAYS,
-                flu_pl_amt_tp="1",
+                flu_pl_amt_tp="3",
                 stex_tp="3",
             )
             themes = data.get("thema_grp", [])

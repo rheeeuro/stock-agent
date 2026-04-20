@@ -411,32 +411,30 @@ export default async function StockReportPage({
         </Card>
 
         {/* 5. 콘텐츠 분석 (유튜브/텔레그램) */}
+        {contentCount > 0 && (
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Newspaper className="w-5 h-5 text-slate-500" />
               콘텐츠 분석
-              {contentCount > 0 && (
-                <span className="ml-auto text-sm font-normal text-slate-500">
-                  {contentCount}건 / 평균 감성점수{" "}
-                  <span
-                    className={`font-bold ${
-                      contentAvgScore >= 60
-                        ? "text-red-600 dark:text-red-400"
-                        : contentAvgScore >= 40
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-blue-600 dark:text-blue-400"
-                    }`}
-                  >
-                    {contentAvgScore.toFixed(0)}
-                  </span>
+              <span className="ml-auto text-sm font-normal text-slate-500">
+                {contentCount}건 / 평균 감성점수{" "}
+                <span
+                  className={`font-bold ${
+                    contentAvgScore >= 60
+                      ? "text-red-600 dark:text-red-400"
+                      : contentAvgScore >= 40
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-blue-600 dark:text-blue-400"
+                  }`}
+                >
+                  {contentAvgScore.toFixed(0)}
                 </span>
-              )}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {contentCount > 0 ? (
-              <div className="space-y-3">
+            <div className="space-y-3">
                 {contentAnalyses.map((c) => (
                   <div
                     key={c.id}
@@ -491,13 +489,9 @@ export default async function StockReportPage({
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="py-6 text-center text-slate-400">
-                해당 종목에 대한 오늘자 콘텐츠 분석이 없습니다
-              </p>
-            )}
           </CardContent>
         </Card>
+        )}
 
         {/* 6. 점수 상세 (점수 브레이크다운) */}
         <Card className="border-slate-200 dark:border-slate-800">
