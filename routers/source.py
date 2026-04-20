@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from core.repository import (
     get_sources,
+    source_exists,
     create_source,
     update_source,
     delete_source,
@@ -42,12 +43,19 @@ def list_sources(
 @router.post("")
 def create_source_route(body: SourceCreate):
     """sources 새 항목 추가"""
-    if not body.platform.strip() or not body.identifier.strip():
+    platform = body.platform.strip()
+    identifier = body.identifier.strip()
+    if not platform or not identifier:
         raise HTTPException(status_code=400, detail="platform과 identifier는 필수입니다.")
+    if source_exists(platform, identifier):
+        raise HTTPException(
+            status_code=409,
+            detail=f"이미 등록된 식별자입니다: {platform} / {identifier}",
+        )
     try:
         source_id = create_source(
-            body.platform.strip(),
-            body.identifier.strip(),
+            platform,
+            identifier,
             body.name.strip() if body.name else None,
             body.is_active,
         )
@@ -59,12 +67,19 @@ def create_source_route(body: SourceCreate):
 @router.put("/{source_id}")
 def update_source_route(source_id: int, body: SourceUpdate):
     """sources 항목 수정"""
-    if not body.platform.strip() or not body.identifier.strip():
+    platform = body.platform.strip()
+    identifier = body.identifier.strip()
+    if not platform or not identifier:
         raise HTTPException(status_code=400, detail="platform과 identifier는 필수입니다.")
+    if source_exists(platform, identifier, exclude_id=source_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"이미 등록된 식별자입니다: {platform} / {identifier}",
+        )
     success = update_source(
         source_id,
-        body.platform.strip(),
-        body.identifier.strip(),
+        platform,
+        identifier,
         body.name.strip() if body.name else None,
         body.is_active,
     )

@@ -48,6 +48,22 @@ def get_sources(platform: str | None = None, is_active: bool | None = None) -> l
         return results
 
 
+def source_exists(platform: str, identifier: str, exclude_id: int | None = None) -> bool:
+    """동일 platform + identifier 조합이 이미 존재하는지 확인 (수정 시 exclude_id로 본인 제외)"""
+    with get_db() as (conn, cursor):
+        if exclude_id is None:
+            cursor.execute(
+                "SELECT 1 FROM sources WHERE platform = %s AND identifier = %s LIMIT 1",
+                (platform, identifier),
+            )
+        else:
+            cursor.execute(
+                "SELECT 1 FROM sources WHERE platform = %s AND identifier = %s AND id != %s LIMIT 1",
+                (platform, identifier, exclude_id),
+            )
+        return cursor.fetchone() is not None
+
+
 def create_source(platform: str, identifier: str, name: str | None, is_active: bool) -> int:
     """sources 새 항목 추가 — 생성된 id 반환"""
     with get_db() as (conn, cursor):

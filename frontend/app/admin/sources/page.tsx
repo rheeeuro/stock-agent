@@ -47,6 +47,8 @@ export default function SourceManagementPage() {
   const [editItem, setEditItem] = useState<Source | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSaving, setFormSaving] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<Source | null>(null);
 
@@ -75,6 +77,7 @@ export default function SourceManagementPage() {
 
   const openCreate = () => {
     setForm({ ...EMPTY_FORM });
+    setFormError(null);
     setCreateOpen(true);
   };
 
@@ -86,50 +89,60 @@ export default function SourceManagementPage() {
       name: item.name ?? "",
       is_active: item.is_active,
     });
+    setFormError(null);
   };
 
-  const handleCreate = async () => {
-    if (!form.platform.trim() || !form.identifier.trim()) return;
+  const hasFormChanges = !editItem || (
+    form.platform.trim() !== editItem.platform ||
+    form.identifier.trim() !== editItem.identifier ||
+    (form.name.trim() || null) !== (editItem.name ?? null) ||
+    form.is_active !== editItem.is_active
+  );
+  const canSubmit =
+    form.platform.trim().length > 0 &&
+    form.identifier.trim().length > 0 &&
+    hasFormChanges;
+
+  const submitForm = async () => {
+    if (!canSubmit) return;
+    const payload = {
+      platform: form.platform.trim(),
+      identifier: form.identifier.trim(),
+      name: form.name.trim() || null,
+      is_active: form.is_active,
+    };
+    const url = editItem ? `/api/sources/${editItem.id}` : `/api/sources`;
+    const method = editItem ? "PUT" : "POST";
+
+    setFormSaving(true);
+    setFormError(null);
     try {
-      const res = await fetch(`/api/sources`, {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform: form.platform.trim(),
-          identifier: form.identifier.trim(),
-          name: form.name.trim() || null,
-          is_active: form.is_active,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setCreateOpen(false);
-        fetchSources();
-      }
-    } catch (e) {
-      console.error("Failed to create source:", e);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!editItem) return;
-    if (!form.platform.trim() || !form.identifier.trim()) return;
-    try {
-      const res = await fetch(`/api/sources/${editItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform: form.platform.trim(),
-          identifier: form.identifier.trim(),
-          name: form.name.trim() || null,
-          is_active: form.is_active,
-        }),
-      });
-      if (res.ok) {
         setEditItem(null);
         fetchSources();
+      } else {
+        const data = await res.json().catch(() => null);
+        setFormError(
+          data?.detail ||
+            data?.error ||
+            (res.status === 409
+              ? "이미 등록된 식별자입니다."
+              : editItem
+                ? "수정에 실패했습니다."
+                : "생성에 실패했습니다.")
+        );
       }
     } catch (e) {
-      console.error("Failed to update source:", e);
+      console.error("Failed to submit source:", e);
+      setFormError("서버에 연결할 수 없습니다.");
+    } finally {
+      setFormSaving(false);
     }
   };
 
@@ -410,7 +423,10 @@ export default function SourceManagementPage() {
                   {(["youtube", "telegram"] as const).map((p) => (
                     <button
                       key={p}
-                      onClick={() => setForm((f) => ({ ...f, platform: p }))}
+                      onClick={() => {
+                        setForm((f) => ({ ...f, platform: p }));
+                        setFormError(null);
+                      }}
                       className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
                         form.platform === p
                           ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
@@ -424,9 +440,10 @@ export default function SourceManagementPage() {
                 <input
                   type="text"
                   value={form.platform}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, platform: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, platform: e.target.value }));
+                    setFormError(null);
+                  }}
                   placeholder="custom platform"
                   className="mt-2 w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
                 />
@@ -438,9 +455,10 @@ export default function SourceManagementPage() {
                 <input
                   type="text"
                   value={form.identifier}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, identifier: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, identifier: e.target.value }));
+                    setFormError(null);
+                  }}
                   placeholder="UCxxxxxx 또는 @channel"
                   className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono"
                 />
@@ -484,6 +502,11 @@ export default function SourceManagementPage() {
                 </div>
               </div>
             </div>
+            {formError && (
+              <p className="text-sm font-medium text-red-600 dark:text-red-400 -mt-1">
+                {formError}
+              </p>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -494,8 +517,8 @@ export default function SourceManagementPage() {
               >
                 취소
               </Button>
-              <Button onClick={editItem ? handleSave : handleCreate}>
-                {editItem ? "저장" : "추가"}
+              <Button onClick={submitForm} disabled={!canSubmit || formSaving}>
+                {formSaving ? (editItem ? "저장 중..." : "추가 중...") : (editItem ? "저장" : "추가")}
               </Button>
             </DialogFooter>
           </DialogContent>

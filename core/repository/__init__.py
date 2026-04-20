@@ -26,6 +26,7 @@ from core.repository.source import (
     get_active_sources,
     get_youtube_sources,
     get_sources,
+    source_exists,
     create_source,
     update_source,
     delete_source,
