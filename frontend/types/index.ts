@@ -52,6 +52,15 @@ export interface MarketIndices {
   COMMODITIES: MarketIndex[];
 }
 
+export interface Source {
+  id: number;
+  platform: string;
+  identifier: string;
+  name: string | null;
+  is_active: boolean;
+  created_at?: string;
+}
+
 export interface TickerDictionary {
   id: number;
   company_name: string;
