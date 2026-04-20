@@ -26,6 +26,21 @@ def _send_telegram_message(message: str):
     return len(chat_ids)
 
 
+def _send_telegram_primary(message: str):
+    """CHAT_ID(개인)에게만 전송"""
+    if not CHAT_ID:
+        return 0
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }
+    requests.post(url, data=data, timeout=10)
+    return 1
+
+
 def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers: list[dict] | None = None, market=None):
     """콘텐츠 분석 결과 텔레그램 전송 (YouTube/Telegram 공통)"""
     try:
@@ -82,3 +97,74 @@ def send_daily_digest_alert(date: str, buy: str, buy_reason: str, sell: str, sel
 
     except Exception as e:
         logging.error(f"❌ 텔레그램 전송 실패: {e}")
+
+
+def send_gap_check_alert(report_date: str, check_time: str, rows: list[dict]):
+    """갭상승 체크 리포트 — CHAT_ID에게만 전송
+
+    rows: [{rank, name, report_price, now_price, pct, error?}]
+    """
+    try:
+        ups, downs, flats, errors = [], [], [], []
+        for r in rows:
+            if r.get("error"):
+                errors.append(r)
+            elif r["pct"] > 0:
+                ups.append(r)
+            elif r["pct"] < 0:
+                downs.append(r)
+            else:
+                flats.append(r)
+
+        def _fmt(r: dict, emoji: str) -> str:
+            return (
+                f"{emoji} `{r['rank']:>2}`. *{r['name']}*  "
+                f"`{r['pct']:+.2f}%`  "
+                f"({r['report_price']:,} → {r['now_price']:,})"
+            )
+
+        sections = []
+        if ups:
+            ups_sorted = sorted(ups, key=lambda x: x["pct"], reverse=True)
+            sections.append(
+                f"🟢 *갭상승 ({len(ups)})*\n"
+                + "\n".join(_fmt(r, "🔺") for r in ups_sorted)
+            )
+        if downs:
+            downs_sorted = sorted(downs, key=lambda x: x["pct"])
+            sections.append(
+                f"🔴 *갭하락 ({len(downs)})*\n"
+                + "\n".join(_fmt(r, "🔻") for r in downs_sorted)
+            )
+        if flats:
+            sections.append(
+                f"⚪ *보합 ({len(flats)})*\n"
+                + "\n".join(_fmt(r, "▪️") for r in flats)
+            )
+        if errors:
+            sections.append(
+                f"❓ *조회실패 ({len(errors)})*\n"
+                + "\n".join(f"   `{r['rank']:>2}`. {r['name']}" for r in errors)
+            )
+
+        wins, losses = len(ups), len(downs)
+        total_tracked = wins + losses + len(flats)
+        win_rate = (wins / total_tracked * 100) if total_tracked else 0.0
+
+        message = (
+            f"📊 *[갭 체크] {report_date} Top 10*\n"
+            f"(리포트 시각 → {check_time})\n\n"
+            f"🏆 *{wins}승 {losses}패* "
+            f"(보합 {len(flats)} / 승률 {win_rate:.0f}%)\n"
+            f"──────────────────\n\n"
+            + "\n\n".join(sections)
+        )
+
+        count = _send_telegram_primary(message)
+        logging.info(
+            f"📨 갭 체크 전송 완료 -> {count}개 채팅방 "
+            f"({wins}승 {losses}패)"
+        )
+
+    except Exception as e:
+        logging.error(f"❌ 갭 체크 전송 실패: {e}")
