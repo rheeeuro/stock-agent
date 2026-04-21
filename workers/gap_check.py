@@ -1,8 +1,15 @@
-"""갭상승 체크 워커 (평일 08:30)
+"""갭상승 체크 워커
 전날 daily_stock_report Top 10의 '리포트 시각 → 현재가' 등락률을 CHAT_ID에게 전송
+
+- 평일 08:30: 기본 실행. NXT 미지원 등으로 장 시작을 대기 중인 종목(now_price == report_price)은
+  state 파일에 저장하고 '⏳ 장 시작 대기' 섹션에 표시.
+- 평일 09:10: --retry 실행. state 파일의 대기 종목만 재조회해서 보정 메시지 전송.
 """
+import json
 import logging
+import sys
 from datetime import datetime
+from pathlib import Path
 
 from core.logging_setup import setup_logging
 from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
@@ -16,6 +23,8 @@ from core.notifications import send_gap_check_alert
 setup_logging()
 logger = logging.getLogger("GapCheck")
 
+STATE_FILE = Path(__file__).resolve().parent.parent / ".gap_check_pending.json"
+
 
 def _most_recent_prior_date() -> str | None:
     dates = get_stock_report_dates(limit=5)
@@ -23,10 +32,84 @@ def _most_recent_prior_date() -> str | None:
     return next((d for d in dates if d < today), None)
 
 
-def run():
+def _query_stocks(
+    reports: list[dict],
+    detect_pending: bool,
+    stk_postfix: str = "",
+) -> list[dict]:
+    """
+    stk_postfix: ka10001 stk_cd 접미사 — ""=KRX, "_NX"=NXT, "_AL"=SOR
+    detect_pending=True면 조회 실패/빈값을 pending으로 분류 (09:10 재조회 대상)
+    """
+    api = KiwoomRestAPI(KiwoomConfig())
+    api.get_access_token()
+    rows = []
+    try:
+        for r in reports:
+            rank = r["rank_no"]
+            name = r["stock_name"]
+            code = r["stock_code"]
+            stk_cd = code.split(".")[0] + stk_postfix
+            report_price = abs(int(r.get("current_price") or 0))
+            score = int(r.get("score") or 0)
+            base = {"rank": rank, "name": name, "score": score}
+            try:
+                info = api.get_stock_basic_info(stk_cd)
+                now_price = abs(AnalysisEngine.parse_price(info.get("cur_prc", "0")))
+                if report_price <= 0:
+                    rows.append({**base, "error": True})
+                    continue
+                if now_price <= 0:
+                    if detect_pending:
+                        rows.append({**base, "code": code, "report_price": report_price, "pending": True})
+                    else:
+                        rows.append({**base, "error": True})
+                    continue
+                pct = (now_price - report_price) / report_price * 100
+                rows.append({
+                    **base,
+                    "report_price": report_price, "now_price": now_price,
+                    "pct": pct,
+                })
+            except Exception as e:
+                logger.warning(f"{name}({stk_cd}) 조회 실패: {e}")
+                if detect_pending:
+                    rows.append({**base, "code": code, "report_price": report_price, "pending": True})
+                else:
+                    rows.append({**base, "error": True})
+    finally:
+        api.revoke_access_token()
+    return rows
+
+
+def _save_state(report_date: str, rows: list[dict]):
+    """pending이 있으면 전체 rows를 저장 (retry 시 기조회 종목도 함께 표시하기 위함)"""
+    pending_count = sum(1 for r in rows if r.get("pending"))
+    if pending_count == 0:
+        STATE_FILE.unlink(missing_ok=True)
+        return
+    STATE_FILE.write_text(
+        json.dumps({"report_date": report_date, "rows": rows}, ensure_ascii=False)
+    )
+    logger.info(f"state 저장 → 총 {len(rows)}건 (대기 {pending_count}건)")
+
+
+def _load_state() -> dict | None:
+    if not STATE_FILE.exists():
+        return None
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except Exception as e:
+        logger.warning(f"state 파일 로드 실패: {e}")
+        return None
+
+
+def run_initial():
     logger.info("=" * 60)
     logger.info("갭상승 체크 시작")
     logger.info("=" * 60)
+
+    STATE_FILE.unlink(missing_ok=True)
 
     report_date = _most_recent_prior_date()
     if not report_date:
@@ -38,40 +121,59 @@ def run():
         logger.info(f"{report_date} 리포트 데이터 없음 — 종료")
         return
 
-    logger.info(f"{report_date} Top {len(reports)} 종목의 현재가 조회 중...")
+    logger.info(f"{report_date} Top {len(reports)} 종목의 NXT 현재가 조회 중...")
 
-    api = KiwoomRestAPI(KiwoomConfig())
-    api.get_access_token()
-
-    rows = []
-    try:
-        for r in reports:
-            rank = r["rank_no"]
-            name = r["stock_name"]
-            code = r["stock_code"]
-            report_price = int(r.get("current_price") or 0)
-            try:
-                info = api.get_stock_basic_info(code)
-                now_price = abs(AnalysisEngine.parse_price(info.get("cur_prc", "0")))
-                if report_price > 0 and now_price > 0:
-                    pct = (now_price - report_price) / report_price * 100
-                    rows.append({
-                        "rank": rank, "name": name,
-                        "report_price": report_price, "now_price": now_price,
-                        "pct": pct,
-                    })
-                else:
-                    rows.append({"rank": rank, "name": name, "error": True})
-            except Exception as e:
-                logger.error(f"{name}({code}) 조회 실패: {e}")
-                rows.append({"rank": rank, "name": name, "error": True})
-    finally:
-        api.revoke_access_token()
+    rows = _query_stocks(reports, detect_pending=True, stk_postfix="_NX")
+    _save_state(report_date, rows)
 
     check_time = datetime.now().strftime("%m-%d %H:%M")
     send_gap_check_alert(report_date, check_time, rows)
     logger.info("갭상승 체크 완료")
 
 
+def run_retry():
+    logger.info("=" * 60)
+    logger.info("갭상승 체크 보정 시작")
+    logger.info("=" * 60)
+
+    state = _load_state()
+    if not state or not state.get("rows"):
+        logger.info("state 없음 — 종료")
+        return
+
+    report_date = state["report_date"]
+    all_rows = state["rows"]
+    pending = [r for r in all_rows if r.get("pending")]
+    if not pending:
+        logger.info("대기 종목 없음 — 종료")
+        return
+
+    logger.info(f"{report_date} 대기 종목 {len(pending)}개 KRX 재조회 중...")
+
+    pending_reports = [{
+        "rank_no": r["rank"],
+        "stock_name": r["name"],
+        "stock_code": r["code"],
+        "current_price": r["report_price"],
+        "score": r["score"],
+    } for r in pending]
+
+    updated = _query_stocks(pending_reports, detect_pending=False, stk_postfix="")
+    updated_by_rank = {u["rank"]: u for u in updated}
+
+    merged = [
+        updated_by_rank.get(r["rank"], r) if r.get("pending") else r
+        for r in all_rows
+    ]
+
+    check_time = datetime.now().strftime("%m-%d %H:%M")
+    send_gap_check_alert(report_date, check_time, merged, is_retry=True)
+    STATE_FILE.unlink(missing_ok=True)
+    logger.info("갭상승 체크 보정 완료")
+
+
 if __name__ == "__main__":
-    run()
+    if "--retry" in sys.argv:
+        run_retry()
+    else:
+        run_initial()

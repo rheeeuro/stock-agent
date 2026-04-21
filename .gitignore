@@ -21,3 +21,4 @@ ollama_data/
 ecosystem.config.js
 docker-compose.yml
 stock_session.*
+.gap_check_pending.json

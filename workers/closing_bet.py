@@ -129,7 +129,7 @@ class ClosingBetStrategy:
             time.sleep(0.3)
 
         # (b) 관심섹터 종목 보강
-        for sector, codes in self.strategy_cfg.WATCHLIST_SECTORS.items():
+        for _, codes in self.strategy_cfg.WATCHLIST_SECTORS.items():
             for raw_code in codes:
                 code = raw_code.split("_")[0]
                 if code in seen_codes:
@@ -137,12 +137,12 @@ class ClosingBetStrategy:
                 try:
                     info = self.api.get_stock_basic_info(code)
                     name = info.get("stk_nm", code)
-                    cp = self.engine.parse_price(info.get("cur_prc", "0"))
+                    cp = abs(self.engine.parse_price(info.get("cur_prc", "0")))
                     mc_raw = self.engine.parse_price(info.get("mac", "0"))
                     mc = mc_raw * 100_000_000
                     if mc >= self.strategy_cfg.MIN_MARKET_CAP:
                         candidates.append(StockCandidate(
-                            code=code, name=name, sector=sector,
+                            code=code, name=name, sector=self._find_sector(code),
                             current_price=cp, market_cap=mc,
                         ))
                         seen_codes.add(code)
@@ -379,10 +379,6 @@ class ClosingBetStrategy:
     # ── 유틸 ──
     def _find_sector(self, code: str) -> str:
         code_base = code.split("_")[0]
-        for sector, codes in self.strategy_cfg.WATCHLIST_SECTORS.items():
-            if any(c.split("_")[0] == code_base for c in codes):
-                return sector
-        # 테마 미매칭 시 ka10100 업종명 조회
         try:
             info = self.api.get_stock_detail_info(code_base)
             up_name = info.get("upName", "").strip()

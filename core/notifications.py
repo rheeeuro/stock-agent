@@ -99,16 +99,21 @@ def send_daily_digest_alert(date: str, buy: str, buy_reason: str, sell: str, sel
         logging.error(f"❌ 텔레그램 전송 실패: {e}")
 
 
-def send_gap_check_alert(report_date: str, check_time: str, rows: list[dict]):
+def send_gap_check_alert(
+    report_date: str, check_time: str, rows: list[dict], is_retry: bool = False
+):
     """갭상승 체크 리포트 — CHAT_ID에게만 전송
 
-    rows: [{rank, name, report_price, now_price, pct, error?}]
+    rows: [{rank, name, report_price, now_price, pct, error?, pending?}]
+    is_retry=True면 '보정' 메시지 포맷으로 전송
     """
     try:
-        ups, downs, flats, errors = [], [], [], []
+        ups, downs, flats, pendings, errors = [], [], [], [], []
         for r in rows:
             if r.get("error"):
                 errors.append(r)
+            elif r.get("pending"):
+                pendings.append(r)
             elif r["pct"] > 0:
                 ups.append(r)
             elif r["pct"] < 0:
@@ -118,47 +123,63 @@ def send_gap_check_alert(report_date: str, check_time: str, rows: list[dict]):
 
         def _fmt(r: dict, emoji: str) -> str:
             return (
-                f"{emoji} `{r['rank']:>2}`. *{r['name']}*  "
-                f"`{r['pct']:+.2f}%`  "
+                f"{emoji} `{r['rank']:>2}`. *{r['name']}* `{r['score']}점`\n"
+                f"    `{r['pct']:+.2f}%`  "
                 f"({r['report_price']:,} → {r['now_price']:,})"
             )
 
+        def _fmt_simple(r: dict) -> str:
+            return f"   `{r['rank']:>2}`. *{r['name']}* `{r['score']}점`"
+
+        by_rank = lambda x: x["rank"]
         sections = []
         if ups:
-            ups_sorted = sorted(ups, key=lambda x: x["pct"], reverse=True)
             sections.append(
-                f"🟢 *갭상승 ({len(ups)})*\n"
-                + "\n".join(_fmt(r, "🔺") for r in ups_sorted)
+                f"🔴 *갭상승 ({len(ups)})*\n"
+                + "\n".join(_fmt(r, "•") for r in sorted(ups, key=by_rank))
             )
         if downs:
-            downs_sorted = sorted(downs, key=lambda x: x["pct"])
             sections.append(
-                f"🔴 *갭하락 ({len(downs)})*\n"
-                + "\n".join(_fmt(r, "🔻") for r in downs_sorted)
+                f"🔵 *갭하락 ({len(downs)})*\n"
+                + "\n".join(_fmt(r, "•") for r in sorted(downs, key=by_rank))
             )
         if flats:
             sections.append(
                 f"⚪ *보합 ({len(flats)})*\n"
-                + "\n".join(_fmt(r, "▪️") for r in flats)
+                + "\n".join(_fmt(r, "•") for r in sorted(flats, key=by_rank))
+            )
+        if pendings:
+            sections.append(
+                f"⏳ *장 시작 대기 ({len(pendings)})*\n"
+                + "\n".join(_fmt_simple(r) for r in sorted(pendings, key=by_rank))
             )
         if errors:
             sections.append(
                 f"❓ *조회실패 ({len(errors)})*\n"
-                + "\n".join(f"   `{r['rank']:>2}`. {r['name']}" for r in errors)
+                + "\n".join(_fmt_simple(r) for r in sorted(errors, key=by_rank))
             )
 
         wins, losses = len(ups), len(downs)
         total_tracked = wins + losses + len(flats)
         win_rate = (wins / total_tracked * 100) if total_tracked else 0.0
 
-        message = (
-            f"📊 *[갭 체크] {report_date} Top 10*\n"
-            f"(리포트 시각 → {check_time})\n\n"
-            f"🏆 *{wins}승 {losses}패* "
-            f"(보합 {len(flats)} / 승률 {win_rate:.0f}%)\n"
-            f"──────────────────\n\n"
-            + "\n\n".join(sections)
-        )
+        if is_retry:
+            message = (
+                f"🔄 *[갭 체크 보정] {report_date}*\n"
+                f"(장 시작 후 재조회 → {check_time})\n\n"
+                f"🏆 *{wins}승 {losses}패* (보합 {len(flats)})\n"
+                f"──────────────────\n\n"
+                + "\n\n".join(sections)
+            )
+        else:
+            message = (
+                f"📊 *[갭 체크] {report_date} Top 10*\n"
+                f"(리포트 시각 → {check_time})\n\n"
+                f"🏆 *{wins}승 {losses}패* "
+                f"(보합 {len(flats)} / 승률 {win_rate:.0f}%)\n"
+                f"──────────────────\n\n"
+                + "\n\n".join(sections)
+            )
 
         count = _send_telegram_primary(message)
         logging.info(
