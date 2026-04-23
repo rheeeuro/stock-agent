@@ -20,19 +20,6 @@ class StrategyConfigResponse(BaseModel):
     MIN_INST_NET_BUY_AMT: int = 0
     MIN_FRGN_NET_BUY_AMT: int = 0
     SUPPLY_CHECK_DAYS: int = 5
-    # 매매 설정
-    MAX_POSITIONS: int = 2
-    SPLIT_COUNT: int = 3
-    SPLIT_INTERVAL_SEC: int = 300
-    MAX_POSITION_RATIO: float = 0.15
-    PROFIT_TARGET: float = 0.02
-    STOP_LOSS: float = -0.015
-    MORNING_SELL_DEADLINE: str = "10:30"
-    # 시간대
-    SCREENING_START: str = "13:00"
-    SUPPLY_CHECK_START: str = "14:30"
-    BUY_WINDOW_START: str = "15:00"
-    BUY_WINDOW_END: str = "15:20"
     # 테마
     TOP_THEME_COUNT: int = 8
     THEME_PERIOD_DAYS: str = "10"

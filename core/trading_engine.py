@@ -6,8 +6,6 @@
 [타임라인]
   13:00~14:30  사전 스크리닝 & 시장 분위기 파악
   14:30~15:00  수급 정밀 체크 & 매수 후보 확정
-  15:00~15:20  분할 매수 실행
-  익일 09:00~10:30  매도 실행
 """
 
 import time
@@ -42,21 +40,6 @@ class StrategyConfig:
     MIN_INST_NET_BUY_AMT = 1_000_000_000     # 기관 순매수 금액 최소 10억
     MIN_FRGN_NET_BUY_AMT = 1_000_000_000
     SUPPLY_CHECK_DAYS = 5
-
-    # ---- 매매 설정 ----
-    MAX_POSITIONS = 2
-    SPLIT_COUNT = 3
-    SPLIT_INTERVAL_SEC = 300
-    MAX_POSITION_RATIO = 0.15
-    PROFIT_TARGET = 0.02
-    STOP_LOSS = -0.015
-    MORNING_SELL_DEADLINE = "10:30"
-
-    # ---- 매수/매도 시간대 ----
-    SCREENING_START = "13:00"
-    SUPPLY_CHECK_START = "14:30"
-    BUY_WINDOW_START = "15:00"
-    BUY_WINDOW_END = "15:20"
 
     # ---- 관심 섹터 (API 동적 로드, ka90001 + ka90002) ----
     WATCHLIST_SECTORS: dict[str, list[str]] = {}
@@ -420,132 +403,3 @@ class AnalysisEngine:
 
         c.score = score
         return score
-
-
-# ============================================================
-# 주문 실행기
-# ============================================================
-
-class OrderExecutor:
-    def __init__(self, api: KiwoomRestAPI, config: StrategyConfig):
-        self.api = api
-        self.cfg = config
-        self.positions: list[Position] = []
-
-    def get_available_cash(self) -> int:
-        data = self.api.get_deposit()
-        return int(data.get("ord_alow_amt", "0").replace(",", ""))
-
-    def execute_split_buy(self, candidate: StockCandidate) -> Optional[Position]:
-        cash = self.get_available_cash()
-        max_budget = int(cash * self.cfg.MAX_POSITION_RATIO)
-        qty_per_split = max(1, (max_budget // self.cfg.SPLIT_COUNT) // candidate.current_price)
-
-        if qty_per_split < 1:
-            logger.warning(f"매수 자금 부족: {candidate.name}")
-            return None
-
-        total_qty = 0
-        total_cost = 0
-
-        for i in range(self.cfg.SPLIT_COUNT):
-            now = datetime.now().strftime("%H:%M")
-            if now > self.cfg.BUY_WINDOW_END:
-                logger.info(f"매수 시간 종료, {i}회차까지 체결")
-                break
-
-            # 현재가 재확인
-            try:
-                info = self.api.get_stock_basic_info(candidate.code)
-                price = AnalysisEngine.parse_price(info.get("cur_prc", "0"))
-                if price <= 0:
-                    price = candidate.current_price
-            except Exception:
-                price = candidate.current_price
-
-            # 매수 주문 (kt10000)
-            try:
-                result = self.api.place_buy_order(
-                    stk_cd=candidate.code,
-                    qty=qty_per_split,
-                    price=price,
-                    trde_tp="0",
-                )
-                ord_no = result.get("ord_no", "N/A")
-                logger.info(
-                    f"[매수 {i+1}/{self.cfg.SPLIT_COUNT}] {candidate.name} "
-                    f"{qty_per_split}주 @ {price:,}원 (주문번호: {ord_no})"
-                )
-                total_qty += qty_per_split
-                total_cost += qty_per_split * price
-            except Exception as e:
-                logger.error(f"매수 주문 실패: {e}")
-                break
-
-            if i < self.cfg.SPLIT_COUNT - 1:
-                time.sleep(self.cfg.SPLIT_INTERVAL_SEC)
-
-        if total_qty > 0:
-            pos = Position(
-                code=candidate.code,
-                name=candidate.name,
-                sector=candidate.sector,
-                avg_price=total_cost / total_qty,
-                quantity=total_qty,
-                bought_at=datetime.now().isoformat(),
-                splits_done=min(i + 1, self.cfg.SPLIT_COUNT),
-            )
-            self.positions.append(pos)
-            logger.info(f"매수 완료: {candidate.name} 총 {total_qty}주, 평단 {pos.avg_price:,.0f}원")
-            return pos
-        return None
-
-    def execute_morning_sell(self):
-        """익일 오전 매도 — 목표가/손절/시간마감"""
-        for pos in list(self.positions):
-            sold = False
-            while not sold:
-                now = datetime.now().strftime("%H:%M")
-
-                try:
-                    info = self.api.get_stock_basic_info(pos.code)
-                    current = AnalysisEngine.parse_price(info.get("cur_prc", "0"))
-                except Exception:
-                    time.sleep(5)
-                    continue
-
-                if current <= 0:
-                    time.sleep(5)
-                    continue
-
-                pnl_pct = (current - pos.avg_price) / pos.avg_price
-
-                if pnl_pct >= self.cfg.PROFIT_TARGET:
-                    logger.info(f"[목표달성] {pos.name} {pnl_pct:.2%} → 매도")
-                    self._sell_all(pos, current)
-                    sold = True
-                elif pnl_pct <= self.cfg.STOP_LOSS:
-                    logger.info(f"[손절] {pos.name} {pnl_pct:.2%} → 매도")
-                    self._sell_all(pos, current)
-                    sold = True
-                elif now >= self.cfg.MORNING_SELL_DEADLINE:
-                    logger.info(f"[시간마감] {pos.name} {pnl_pct:.2%} → 매도")
-                    self._sell_all(pos, current, market=True)
-                    sold = True
-                else:
-                    time.sleep(10)
-
-    def _sell_all(self, pos: Position, price: int, market: bool = False):
-        """전량 매도 (kt10001)"""
-        try:
-            result = self.api.place_sell_order(
-                stk_cd=pos.code,
-                qty=pos.quantity,
-                price=price,
-                trde_tp="3" if market else "0",
-            )
-            ord_no = result.get("ord_no", "N/A")
-            logger.info(f"매도 완료: {pos.name} {pos.quantity}주 (주문번호: {ord_no})")
-            self.positions.remove(pos)
-        except Exception as e:
-            logger.error(f"매도 실패 [{pos.name}]: {e}")

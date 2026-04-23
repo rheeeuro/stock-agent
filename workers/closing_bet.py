@@ -4,8 +4,6 @@
 [타임라인]
   13:00~14:30  사전 스크리닝 & 시장 분위기 파악
   14:30~15:00  수급 정밀 체크 & 매수 후보 확정
-  15:00~15:20  분할 매수 실행
-  익일 09:00~10:30  매도 실행
 """
 
 import time
@@ -53,7 +51,6 @@ class ClosingBetStrategy:
             self._fetch_watchlist_sectors()
 
             # 1. Phase 1 — 사전 스크리닝 (13:00~)
-            # self._wait_until(self.strategy_cfg.SCREENING_START)
             candidates = self._phase1_screening()
             logger.info(f"Phase 1 완료: {len(candidates)}개 후보")
             logger.info("Phase 1 상위 후보:")
@@ -65,22 +62,9 @@ class ClosingBetStrategy:
                 )
 
             # 2. Phase 2 — 수급 정밀 분석 (14:30~)
-            # self._wait_until(self.strategy_cfg.SUPPLY_CHECK_START)
             candidates = self._phase2_supply_analysis(candidates)
             logger.info(f"Phase 2 완료: {len(candidates)}개 후보")
 
-            return  # Phase 3 매수 실행은 테스트를 위해 일단 보류
-
-            # # 3. Phase 3 — 매수 실행 (15:00~15:20)
-            # self._wait_until(self.strategy_cfg.BUY_WINDOW_START)
-            # self._phase3_execute_buy(candidates)
-
-            # # 4. Phase 4 — 익일 매도 (09:00~10:30)
-            # logger.info("익일 오전 매도 대기...")
-            # self._wait_until("09:05")
-            # self.executor.execute_morning_sell()
-
-            # logger.info("전략 실행 완료")
         finally:
             self.api.revoke_access_token()
 
@@ -267,28 +251,6 @@ class ClosingBetStrategy:
             logger.info(f"Phase 2 리포트 {len(reports)}건 DB 저장 완료")
         except Exception as e:
             logger.error(f"Phase 2 리포트 DB 저장 실패: {e}")
-
-    # ── Phase 3: 매수 ──
-    def _phase3_execute_buy(self, candidates: list[StockCandidate]):
-        selected_sectors = set()
-        buy_targets = []
-
-        for c in candidates:
-            if len(buy_targets) >= self.strategy_cfg.MAX_POSITIONS:
-                break
-            if c.sector in selected_sectors:
-                continue
-            buy_targets.append(c)
-            selected_sectors.add(c.sector)
-
-        if not buy_targets:
-            logger.warning("매수 대상 없음 — 오늘은 관망")
-            return
-
-        logger.info(f"매수 대상: {[f'{t.name}({t.sector})' for t in buy_targets]}")
-
-        for target in buy_targets:
-            self.executor.execute_split_buy(target)
 
     # ── 관심 섹터 동적 로드 ──
     def _fetch_watchlist_sectors(self):

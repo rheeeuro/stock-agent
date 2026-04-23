@@ -9,22 +9,23 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
+function fetchOptions(date: string): RequestInit {
+  const today = new Date().toLocaleDateString("en-CA");
+  return date >= today
+    ? { cache: "no-store" }
+    : ({ next: { revalidate: 600 } } as RequestInit);
+}
+
 async function getReportByDate(date: string): Promise<DailySummary | null> {
-  return apiFetch(`/api/daily-summary/${date}`, null, {
-    next: { revalidate: 600 },
-  } as RequestInit);
+  return apiFetch(`/api/daily-summary/${date}`, null, fetchOptions(date));
 }
 
 async function getStockReports(date: string): Promise<StockReport[]> {
-  return apiFetch(`/api/stock-report/${date}`, [], {
-    next: { revalidate: 600 },
-  } as RequestInit);
+  return apiFetch(`/api/stock-report/${date}`, [], fetchOptions(date));
 }
 
 async function getSectorReports(date: string): Promise<SectorReport[]> {
-  return apiFetch(`/api/sector-report/${date}`, [], {
-    next: { revalidate: 600 },
-  } as RequestInit);
+  return apiFetch(`/api/sector-report/${date}`, [], fetchOptions(date));
 }
 
 export async function generateMetadata({ params }: { params: { date: string } }): Promise<Metadata> {

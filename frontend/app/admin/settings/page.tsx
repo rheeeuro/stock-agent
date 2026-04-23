@@ -13,17 +13,6 @@ interface StrategyConfig {
   MIN_INST_NET_BUY_AMT: number;
   MIN_FRGN_NET_BUY_AMT: number;
   SUPPLY_CHECK_DAYS: number;
-  MAX_POSITIONS: number;
-  SPLIT_COUNT: number;
-  SPLIT_INTERVAL_SEC: number;
-  MAX_POSITION_RATIO: number;
-  PROFIT_TARGET: number;
-  STOP_LOSS: number;
-  MORNING_SELL_DEADLINE: string;
-  SCREENING_START: string;
-  SUPPLY_CHECK_START: string;
-  BUY_WINDOW_START: string;
-  BUY_WINDOW_END: string;
   TOP_THEME_COUNT: number;
   THEME_PERIOD_DAYS: string;
   THEME_STOCK_BONUS: number;
@@ -53,27 +42,6 @@ const SECTIONS = [
       { key: "MIN_INST_NET_BUY_AMT", label: "기관 순매수 최소 금액", unit: "원", type: "currency" as const },
       { key: "MIN_FRGN_NET_BUY_AMT", label: "외국인 순매수 최소 금액", unit: "원", type: "currency" as const },
       { key: "SUPPLY_CHECK_DAYS", label: "수급 확인 기간", unit: "일", type: "number" as const },
-    ],
-  },
-  {
-    title: "매매 설정",
-    fields: [
-      { key: "MAX_POSITIONS", label: "최대 포지션 수", unit: "개", type: "number" as const },
-      { key: "SPLIT_COUNT", label: "분할 매수 횟수", unit: "회", type: "number" as const },
-      { key: "SPLIT_INTERVAL_SEC", label: "분할 매수 간격", unit: "초", type: "number" as const },
-      { key: "MAX_POSITION_RATIO", label: "최대 포지션 비율", unit: "", type: "percent" as const },
-      { key: "PROFIT_TARGET", label: "목표 수익률", unit: "", type: "percent" as const },
-      { key: "STOP_LOSS", label: "손절 기준", unit: "", type: "percent" as const },
-      { key: "MORNING_SELL_DEADLINE", label: "오전 매도 마감", unit: "", type: "time" as const },
-    ],
-  },
-  {
-    title: "매매 시간대",
-    fields: [
-      { key: "SCREENING_START", label: "스크리닝 시작", unit: "", type: "time" as const },
-      { key: "SUPPLY_CHECK_START", label: "수급 체크 시작", unit: "", type: "time" as const },
-      { key: "BUY_WINDOW_START", label: "매수 시작", unit: "", type: "time" as const },
-      { key: "BUY_WINDOW_END", label: "매수 종료", unit: "", type: "time" as const },
     ],
   },
   {
@@ -263,12 +231,7 @@ export default function SettingsPage() {
                       {formatCurrency(configRecord[field.key] as number)}
                     </span>
                   )}
-                  {field.type === "percent" && (
-                    <span className="text-xs text-slate-400 sm:w-16 text-right">
-                      {((configRecord[field.key] as number) * 100).toFixed(1)}%
-                    </span>
-                  )}
-                  {field.unit && field.type !== "currency" && field.type !== "percent" && (
+                  {field.unit && field.type !== "currency" && (
                     <span className="text-xs text-slate-400 sm:w-16 text-right">
                       {field.unit}
                     </span>
@@ -306,17 +269,6 @@ function FieldInput({
           className={inputClass}
         />
       );
-    case "percent":
-      return (
-        <input
-          type="number"
-          step="0.001"
-          value={value as number}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className={inputClass}
-        />
-      );
-    case "time":
     case "text":
       return (
         <input

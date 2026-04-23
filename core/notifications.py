@@ -3,7 +3,22 @@
 """
 import logging
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from core.config import TELEGRAM_TOKEN, CHAT_ID, CHAT_ID2
+
+
+_retry = Retry(
+    total=5,
+    connect=5,
+    read=3,
+    backoff_factor=2,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["POST"],
+    raise_on_status=False,
+)
+_session = requests.Session()
+_session.mount("https://", HTTPAdapter(max_retries=_retry))
 
 
 def _get_chat_ids() -> list:
@@ -11,18 +26,23 @@ def _get_chat_ids() -> list:
     return [cid for cid in [CHAT_ID, CHAT_ID2] if cid]
 
 
+def _post(chat_id: str, message: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }
+    resp = _session.post(url, data=data, timeout=10)
+    resp.raise_for_status()
+
+
 def _send_telegram_message(message: str):
     """텔레그램 메시지 전송 (내부 공통 로직)"""
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     chat_ids = _get_chat_ids()
     for chat_id in chat_ids:
-        data = {
-            "chat_id": chat_id,
-            "text": message,
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": True,
-        }
-        requests.post(url, data=data, timeout=10)
+        _post(chat_id, message)
     return len(chat_ids)
 
 
@@ -30,14 +50,7 @@ def _send_telegram_primary(message: str):
     """CHAT_ID(개인)에게만 전송"""
     if not CHAT_ID:
         return 0
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }
-    requests.post(url, data=data, timeout=10)
+    _post(CHAT_ID, message)
     return 1
 
 
