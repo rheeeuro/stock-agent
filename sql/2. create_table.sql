@@ -127,3 +127,13 @@ CREATE TABLE IF NOT EXISTS daily_sector_report (
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_date_thema (report_date, thema_grp_cd)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 텔레그램 전송 대상 유저 (id = 텔레그램 chat id)
+CREATE TABLE IF NOT EXISTS telegram_users (
+    id         VARCHAR(50) PRIMARY KEY,               -- 텔레그램 chat id
+    name       VARCHAR(50) NOT NULL,                  -- 표시용 이름 (CHAT_ID, CHAT_ID2 등)
+    role       VARCHAR(10) NOT NULL DEFAULT 'NORMAL', -- 'ADMIN', 'NORMAL'
+    is_active  BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -51,6 +51,16 @@ from core.repository.strategy_config import (
     update_strategy_config,
 )
 
+from core.repository.telegram_user import (
+    get_telegram_users,
+    get_active_chat_ids,
+    telegram_user_exists,
+    create_telegram_user,
+    update_telegram_user,
+    delete_telegram_user,
+    VALID_ROLES,
+)
+
 from core.repository.ticker import (
     lookup_ticker,
     lookup_name_by_ticker,

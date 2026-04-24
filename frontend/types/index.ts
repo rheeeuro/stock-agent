@@ -61,6 +61,15 @@ export interface Source {
   created_at?: string;
 }
 
+export interface TelegramUser {
+  id: string;
+  name: string;
+  role: 'ADMIN' | 'NORMAL';
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface TickerDictionary {
   id: number;
   company_name: string;

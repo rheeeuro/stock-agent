@@ -5,7 +5,8 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from core.config import TELEGRAM_TOKEN, CHAT_ID, CHAT_ID2
+from core.config import TELEGRAM_TOKEN
+from core.repository import get_active_chat_ids
 
 
 _retry = Retry(
@@ -21,11 +22,6 @@ _session = requests.Session()
 _session.mount("https://", HTTPAdapter(max_retries=_retry))
 
 
-def _get_chat_ids() -> list:
-    """유효한 CHAT_ID 목록 반환"""
-    return [cid for cid in [CHAT_ID, CHAT_ID2] if cid]
-
-
 def _post(chat_id: str, message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {
@@ -39,19 +35,19 @@ def _post(chat_id: str, message: str):
 
 
 def _send_telegram_message(message: str):
-    """텔레그램 메시지 전송 (내부 공통 로직)"""
-    chat_ids = _get_chat_ids()
+    """활성 상태인 모든 유저에게 전송"""
+    chat_ids = get_active_chat_ids()
     for chat_id in chat_ids:
         _post(chat_id, message)
     return len(chat_ids)
 
 
-def _send_telegram_primary(message: str):
-    """CHAT_ID(개인)에게만 전송"""
-    if not CHAT_ID:
-        return 0
-    _post(CHAT_ID, message)
-    return 1
+def _send_telegram_admin(message: str):
+    """ADMIN 역할 유저에게만 전송"""
+    chat_ids = get_active_chat_ids(role="ADMIN")
+    for chat_id in chat_ids:
+        _post(chat_id, message)
+    return len(chat_ids)
 
 
 def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers: list[dict] | None = None, market=None):
@@ -115,7 +111,7 @@ def send_daily_digest_alert(date: str, buy: str, buy_reason: str, sell: str, sel
 def send_gap_check_alert(
     report_date: str, check_time: str, rows: list[dict], is_retry: bool = False
 ):
-    """갭상승 체크 리포트 — CHAT_ID에게만 전송
+    """갭상승 체크 리포트 — ADMIN 유저에게만 전송
 
     rows: [{rank, name, report_price, now_price, pct, error?, pending?}]
     is_retry=True면 '보정' 메시지 포맷으로 전송
@@ -194,7 +190,7 @@ def send_gap_check_alert(
                 + "\n\n".join(sections)
             )
 
-        count = _send_telegram_primary(message)
+        count = _send_telegram_admin(message)
         logging.info(
             f"📨 갭 체크 전송 완료 -> {count}개 채팅방 "
             f"({wins}승 {losses}패)"

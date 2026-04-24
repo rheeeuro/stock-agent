@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { Lock, Tags, SlidersHorizontal, Rss } from "lucide-react";
+import { Lock, Tags, SlidersHorizontal, Rss, Send } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ADMIN_TABS = [
   { href: "/admin/tickers", label: "티커 관리", icon: Tags },
   { href: "/admin/sources", label: "소스 관리", icon: Rss },
+  { href: "/admin/telegram-users", label: "텔레그램 유저", icon: Send },
   { href: "/admin/settings", label: "전략 설정", icon: SlidersHorizontal },
 ];
 

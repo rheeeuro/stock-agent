@@ -21,8 +21,6 @@ DB_CONFIG = {
 # 텔레그램 설정
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-CHAT_ID = os.getenv('CHAT_ID', '')
-CHAT_ID2 = os.getenv('CHAT_ID2', '')
 
 # 텔레그램 API (Telethon)
 TELEGRAM_API_ID = os.getenv('TELEGRAM_API_ID')

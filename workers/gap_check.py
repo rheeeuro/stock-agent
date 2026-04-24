@@ -1,5 +1,5 @@
 """갭상승 체크 워커
-전날 daily_stock_report Top 10의 '리포트 시각 → 현재가' 등락률을 CHAT_ID에게 전송
+전날 daily_stock_report Top 10의 '리포트 시각 → 현재가' 등락률을 ADMIN 유저에게 전송
 
 - 평일 08:30: 기본 실행. NXT 미지원 등으로 장 시작을 대기 중인 종목(now_price == report_price)은
   state 파일에 저장하고 '⏳ 장 시작 대기' 섹션에 표시.
