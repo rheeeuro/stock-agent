@@ -13,5 +13,5 @@ core 패키지 - 공통 인프라 & 비즈니스 로직
     from core.notifications import send_analysis_alert
     from core.market_data import fetch_stock_price, fetch_market_indices
     from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
-    from core.trading_engine import StrategyConfig, AnalysisEngine, OrderExecutor
+    from core.trading_engine import StrategyConfig, AnalysisEngine
 """

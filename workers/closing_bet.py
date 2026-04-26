@@ -16,7 +16,6 @@ from core.trading_engine import (
     SupplyGrade,
     StockCandidate,
     AnalysisEngine,
-    OrderExecutor,
 )
 from core.repository.stock_report import save_stock_reports
 from core.repository.sector_report import save_sector_reports
@@ -36,7 +35,6 @@ class ClosingBetStrategy:
         self.strategy_cfg.load_from_db()
         self.api = KiwoomRestAPI(self.api_cfg)
         self.engine = AnalysisEngine(self.api, self.strategy_cfg)
-        self.executor = OrderExecutor(self.api, self.strategy_cfg)
 
     def run(self):
         logger.info("=" * 60)
