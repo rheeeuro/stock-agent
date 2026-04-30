@@ -113,33 +113,65 @@ def send_gap_check_alert(
 ):
     """갭상승 체크 리포트 — ADMIN 유저에게만 전송
 
-    rows: [{rank, name, report_price, now_price, pct, error?, pending?}]
-    is_retry=True면 '보정' 메시지 포맷으로 전송
+    초기(8:10) rows: [{rank, name, report_price, now_price, pct, error?, pending?}]
+    재조회(9:10) rows: [{rank, name, report_price,
+        nxt_price?, nxt_pct?, krx_price?, krx_pct?, krx_from_nxt_pct?, error?}]
+        — 분류는 krx_pct(우선) / nxt_pct(폴백) 기준.
     """
     try:
         ups, downs, flats, pendings, errors = [], [], [], [], []
         for r in rows:
             if r.get("error"):
                 errors.append(r)
-            elif r.get("pending"):
+                continue
+            if r.get("pending"):
                 pendings.append(r)
-            elif r["pct"] > 0:
+                continue
+            if is_retry:
+                pct = r.get("krx_pct", r.get("nxt_pct"))
+            else:
+                pct = r.get("pct")
+            if pct is None:
+                errors.append(r)
+                continue
+            if pct > 0:
                 ups.append(r)
-            elif r["pct"] < 0:
+            elif pct < 0:
                 downs.append(r)
             else:
                 flats.append(r)
 
-        def _fmt(r: dict, emoji: str) -> str:
+        def _fmt_initial(r: dict, emoji: str) -> str:
             return (
                 f"{emoji} `{r['rank']:>2}`. *{r['name']}* `{r['score']}점`\n"
                 f"    `{r['pct']:+.2f}%`  "
                 f"({r['report_price']:,} → {r['now_price']:,})"
             )
 
+        def _fmt_retry(r: dict, emoji: str) -> str:
+            lines = [f"{emoji} `{r['rank']:>2}`. *{r['name']}* `{r['score']}점`"]
+            if "nxt_pct" in r:
+                lines.append(
+                    f"    `[NXT]` `{r['nxt_pct']:+.2f}%`  "
+                    f"({r['report_price']:,} → {r['nxt_price']:,})"
+                )
+            if "krx_pct" in r:
+                if "krx_from_nxt_pct" in r:
+                    lines.append(
+                        f"    `[KRX]` `{r['krx_from_nxt_pct']:+.2f}%`  "
+                        f"({r['nxt_price']:,} → {r['krx_price']:,})"
+                    )
+                else:
+                    lines.append(
+                        f"    `[KRX]` `{r['krx_pct']:+.2f}%`  "
+                        f"({r['report_price']:,} → {r['krx_price']:,})"
+                    )
+            return "\n".join(lines)
+
         def _fmt_simple(r: dict) -> str:
             return f"   `{r['rank']:>2}`. *{r['name']}* `{r['score']}점`"
 
+        _fmt = _fmt_retry if is_retry else _fmt_initial
         by_rank = lambda x: x["rank"]
         sections = []
         if ups:
@@ -174,9 +206,10 @@ def send_gap_check_alert(
 
         if is_retry:
             message = (
-                f"🔄 *[갭 체크 보정] {report_date}*\n"
+                f"🔄 *[갭 체크 최종] {report_date}*\n"
                 f"(장 시작 후 재조회 → {check_time})\n\n"
-                f"🏆 *{wins}승 {losses}패* (보합 {len(flats)})\n"
+                f"🏆 *{wins}승 {losses}패* "
+                f"(보합 {len(flats)} / 승률 {win_rate:.0f}%)\n"
                 f"──────────────────\n\n"
                 + "\n\n".join(sections)
             )

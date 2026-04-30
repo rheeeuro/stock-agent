@@ -1,9 +1,11 @@
 """갭상승 체크 워커
 전날 daily_stock_report Top 10의 '리포트 시각 → 현재가' 등락률을 ADMIN 유저에게 전송
 
-- 평일 08:30: 기본 실행. NXT 미지원 등으로 장 시작을 대기 중인 종목(now_price == report_price)은
+- 평일 08:10: 기본 실행. NXT 가격 조회. 미지원 등으로 대기 중인 종목은
   state 파일에 저장하고 '⏳ 장 시작 대기' 섹션에 표시.
-- 평일 09:10: --retry 실행. state 파일의 대기 종목만 재조회해서 보정 메시지 전송.
+- 평일 09:10: --retry 실행. 전체 종목을 KRX로 재조회.
+  8:10 NXT 결과가 있는 종목은 [NXT]/[KRX] 두 줄로 표시하고,
+  갭 상승/하락 분류는 리포트 → 9:10 KRX 최종 등락률 기준.
 """
 import json
 import logging
@@ -83,11 +85,11 @@ def _query_stocks(
 
 
 def _save_state(report_date: str, rows: list[dict]):
-    """pending이 있으면 전체 rows를 저장 (retry 시 기조회 종목도 함께 표시하기 위함)"""
-    pending_count = sum(1 for r in rows if r.get("pending"))
-    if pending_count == 0:
+    """retry에서 전체 종목을 KRX로 재조회하기 위해 항상 저장"""
+    if not rows:
         STATE_FILE.unlink(missing_ok=True)
         return
+    pending_count = sum(1 for r in rows if r.get("pending"))
     STATE_FILE.write_text(
         json.dumps({"report_date": report_date, "rows": rows}, ensure_ascii=False)
     )
@@ -133,7 +135,7 @@ def run_initial():
 
 def run_retry():
     logger.info("=" * 60)
-    logger.info("갭상승 체크 보정 시작")
+    logger.info("갭상승 체크 재조회 시작")
     logger.info("=" * 60)
 
     state = _load_state()
@@ -143,33 +145,61 @@ def run_retry():
 
     report_date = state["report_date"]
     all_rows = state["rows"]
-    pending = [r for r in all_rows if r.get("pending")]
-    if not pending:
-        logger.info("대기 종목 없음 — 종료")
+    candidates = [r for r in all_rows if not r.get("error")]
+    if not candidates:
+        logger.info("재조회 대상 없음 — 종료")
         return
 
-    logger.info(f"{report_date} 대기 종목 {len(pending)}개 KRX 재조회 중...")
+    logger.info(f"{report_date} 종목 {len(candidates)}개 KRX 재조회 중...")
 
-    pending_reports = [{
+    krx_inputs = [{
         "rank_no": r["rank"],
         "stock_name": r["name"],
         "stock_code": r["code"],
         "current_price": r["report_price"],
         "score": r["score"],
-    } for r in pending]
+    } for r in candidates]
 
-    updated = _query_stocks(pending_reports, detect_pending=False, stk_postfix="")
-    updated_by_rank = {u["rank"]: u for u in updated}
+    krx_rows = _query_stocks(krx_inputs, detect_pending=False, stk_postfix="")
+    krx_by_rank = {k["rank"]: k for k in krx_rows}
 
-    merged = [
-        updated_by_rank.get(r["rank"], r) if r.get("pending") else r
-        for r in all_rows
-    ]
+    merged = []
+    for r in all_rows:
+        if r.get("error"):
+            merged.append(r)
+            continue
+
+        krx = krx_by_rank.get(r["rank"], {})
+        krx_ok = "now_price" in krx and not krx.get("error")
+        nxt_ok = not r.get("pending") and "now_price" in r
+
+        if not krx_ok and not nxt_ok:
+            merged.append({
+                "rank": r["rank"], "name": r["name"], "score": r["score"],
+                "error": True,
+            })
+            continue
+
+        out = {
+            "rank": r["rank"], "name": r["name"], "score": r["score"],
+            "report_price": r["report_price"],
+        }
+        if nxt_ok:
+            out["nxt_price"] = r["now_price"]
+            out["nxt_pct"] = r["pct"]
+        if krx_ok:
+            out["krx_price"] = krx["now_price"]
+            out["krx_pct"] = krx["pct"]
+            if nxt_ok and r["now_price"] > 0:
+                out["krx_from_nxt_pct"] = (
+                    (krx["now_price"] - r["now_price"]) / r["now_price"] * 100
+                )
+        merged.append(out)
 
     check_time = datetime.now().strftime("%m-%d %H:%M")
     send_gap_check_alert(report_date, check_time, merged, is_retry=True)
     STATE_FILE.unlink(missing_ok=True)
-    logger.info("갭상승 체크 보정 완료")
+    logger.info("갭상승 체크 재조회 완료")
 
 
 if __name__ == "__main__":
