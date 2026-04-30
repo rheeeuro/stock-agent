@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS daily_stock_report (
     market_cap BIGINT DEFAULT 0,
 
     -- 수급 관련
-    supply_grade VARCHAR(10) NOT NULL DEFAULT 'C',
+    supply_score FLOAT DEFAULT 0.0,   -- 최근 5일 수급 정밀 점수 (0~100). 등급(S/A/B/C/D)은 응답 시점에 점수에서 파생
     inst_net_buy BIGINT DEFAULT 0,
     frgn_net_buy BIGINT DEFAULT 0,
     indv_net_buy BIGINT DEFAULT 0,

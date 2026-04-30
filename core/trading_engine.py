@@ -67,10 +67,12 @@ class StrategyConfig:
 
 
 class SupplyGrade(Enum):
-    S = "외국인+기관 양매수"
-    A = "기관 강한 매수"
-    B = "외국인 단독 매수"
-    C = "해당없음"
+    """5일 수급 점수 기반 등급 (calculate_supply_score 결과를 classify_supply_score로 매핑)"""
+    S = "S급 수급 - 종가베팅 최우선 후보"   # score >= 85
+    A = "A급 수급 - 관심권"                # score >= 70
+    B = "B급 수급 - 조건부 관찰"            # score >= 55
+    C = "C급 수급 - 수급 약함"              # score >= 40
+    D = "D급 수급 - 제외"                  # score <  40
 
 
 @dataclass
@@ -84,7 +86,8 @@ class StockCandidate:
     change_pct: float = 0.0
     ma_aligned: bool = False
     near_high: bool = False
-    supply_grade: SupplyGrade = SupplyGrade.C
+    supply_grade: SupplyGrade = SupplyGrade.D
+    supply_score: float = 0.0  # 최근 5일 수급 정밀 점수 (0~100)
     inst_net_buy: int = 0
     frgn_net_buy: int = 0
     indv_net_buy: int = 0
@@ -236,6 +239,147 @@ class AnalysisEngine:
             logger.warning(f"차트 분석 실패 [{stk_cd}]: {e}")
             return False, False
 
+    # ── 5일 수급 점수 (슈도코드 기반 0~100점 환산) ──
+    @staticmethod
+    def _normalize_supply_amount(amount_won: int) -> int:
+        """순매수 절대 금액을 억원 단위 구간 점수(0~5)로 변환.
+        종목별 시총/거래대금 차이로 인한 금액 왜곡을 줄이기 위한 정규화."""
+        abs_eok = abs(amount_won) / 100_000_000  # 원 → 억원
+        if abs_eok >= 1000:
+            return 5
+        if abs_eok >= 500:
+            return 4
+        if abs_eok >= 300:
+            return 3
+        if abs_eok >= 100:
+            return 2
+        if abs_eok > 0:
+            return 1
+        return 0
+
+    @classmethod
+    def calculate_supply_score(cls, history: list[dict]) -> float:
+        """최근 5거래일 개인/외국인/기관 순매수를 종합해 0~100점으로 환산.
+
+        history는 ka10059 응답 그대로(최신→과거). 내부에서 과거→최신 순으로 뒤집어
+        오래된 날에 낮은 가중치(1.0), 최신일에 높은 가중치(1.6)를 적용한다.
+
+        우선순위: 외국인+기관 양매수 > 기관 단독 > 외국인 단독 > 개인 매도 동반
+        """
+        if not history:
+            return 0.0
+
+        days = list(reversed(history[:5]))  # 과거 → 최신
+        base_weights = [1.0, 1.1, 1.2, 1.4, 1.6]
+        weights = base_weights[-len(days):]
+
+        score = 0.0
+        consec_double = consec_inst = consec_frgn = 0
+        max_consec_double = max_consec_inst = max_consec_frgn = 0
+        total_personal = total_frgn = total_inst = 0
+
+        for day, weight in zip(days, weights):
+            personal = day.get("indv_net_buy", 0)
+            foreigner = day.get("frgn_net_buy", 0)
+            institution = day.get("inst_net_buy", 0)
+
+            total_personal += personal
+            total_frgn += foreigner
+            total_inst += institution
+
+            # 1. 외국인 + 기관 양매수 (1순위)
+            if foreigner > 0 and institution > 0:
+                consec_double += 1
+                score += 12 * weight
+                score += cls._normalize_supply_amount(foreigner + institution) * 4 * weight
+            else:
+                consec_double = 0
+
+            # 2. 기관 순매수 (2순위)
+            if institution > 0:
+                consec_inst += 1
+                score += 8 * weight
+                score += cls._normalize_supply_amount(institution) * 3 * weight
+            else:
+                consec_inst = 0
+
+            # 3. 외국인 순매수
+            if foreigner > 0:
+                consec_frgn += 1
+                score += 5 * weight
+                score += cls._normalize_supply_amount(foreigner) * 2 * weight
+            else:
+                consec_frgn = 0
+
+            # 4. 개인 매도/매수 (개인 매수는 종가베팅 관점 감점)
+            # personal == 0 은 ka10059 잠정치 미반영 가능성이 있어 중립 처리(가감점 없음)
+            if personal < 0:
+                score += 3 * weight
+            elif personal > 0:
+                score -= 3 * weight
+
+            # 5. 당일 수급 구조
+            smart = foreigner + institution
+            if smart > 0 and personal < 0:
+                score += 5 * weight
+            if smart < 0 and personal > 0:
+                score -= 8 * weight
+
+            max_consec_double = max(max_consec_double, consec_double)
+            max_consec_inst = max(max_consec_inst, consec_inst)
+            max_consec_frgn = max(max_consec_frgn, consec_frgn)
+
+        # 6. 연속 양매수 보너스
+        score += {5: 30, 4: 22, 3: 15, 2: 8}.get(min(max_consec_double, 5), 0)
+        # 7. 기관 연속 순매수 보너스
+        score += {5: 22, 4: 16, 3: 10, 2: 5}.get(min(max_consec_inst, 5), 0)
+        # 8. 외국인 연속 순매수 보너스
+        score += {5: 12, 4: 9, 3: 6, 2: 3}.get(min(max_consec_frgn, 5), 0)
+
+        # 9. 5일 누적 수급 구조
+        total_smart = total_frgn + total_inst
+        if total_frgn > 0 and total_inst > 0:
+            score += 20
+        if total_inst > 0:
+            score += 12
+        if total_smart > 0 and total_personal < 0:
+            score += 15
+        if total_smart < 0 and total_personal > 0:
+            score -= 20
+
+        # 10. 최근 2일 강조 (종가베팅은 최신 수급이 핵심)
+        if len(days) >= 2:
+            d4, d5 = days[-2], days[-1]
+            if (d4.get("frgn_net_buy", 0) > 0 and d4.get("inst_net_buy", 0) > 0 and
+                    d5.get("frgn_net_buy", 0) > 0 and d5.get("inst_net_buy", 0) > 0):
+                score += 20
+        d5 = days[-1]
+        f5 = d5.get("frgn_net_buy", 0)
+        i5 = d5.get("inst_net_buy", 0)
+        p5 = d5.get("indv_net_buy", 0)
+        if f5 > 0 and i5 > 0:
+            score += 15
+        if i5 > 0:
+            score += 8
+        if (f5 + i5) > 0 and p5 < 0:
+            score += 8
+        if f5 < 0 and i5 < 0:
+            score -= 20
+
+        return max(0.0, min(100.0, score))
+
+    @staticmethod
+    def classify_supply_score(score: float) -> SupplyGrade:
+        if score >= 85:
+            return SupplyGrade.S
+        if score >= 70:
+            return SupplyGrade.A
+        if score >= 55:
+            return SupplyGrade.B
+        if score >= 40:
+            return SupplyGrade.C
+        return SupplyGrade.D
+
     # ── 수급 분석 ──
     def analyze_supply_demand(self, stk_cd: str, current_price: int) -> dict:
         result = {
@@ -243,7 +387,8 @@ class AnalysisEngine:
             "frgn_net_buy": 0,
             "indv_net_buy": 0,
             "prog_net_buy": 0,
-            "supply_grade": SupplyGrade.C,
+            "supply_grade": SupplyGrade.D,
+            "supply_score": 0.0,
             "supply_days": 0,
             "foreign_brokers_buying": False,
             "supply_history": [],
@@ -324,24 +469,22 @@ class AnalysisEngine:
         except Exception as e:
             logger.warning(f"거래원 조회 실패 [{stk_cd}]: {e}")
 
-        # (e) 수급 등급 판정
-        inst_strong = abs(result["inst_net_buy"]) >= self.cfg.MIN_INST_NET_BUY_AMT \
-                      and result["inst_net_buy"] > 0
-        frgn_strong = (
-            (abs(result["frgn_net_buy"]) >= self.cfg.MIN_FRGN_NET_BUY_AMT
-             and result["frgn_net_buy"] > 0)
-            or result["prog_net_buy"] > 0
-            or result["foreign_brokers_buying"]
-        )
+        # (e) 5일 수급 점수 산정 + 등급 판정
+        #     supply_history 기반 정밀 점수(0~100)로 S/A/B/C/D 5단계 분류.
+        #     외국계 거래원 매수 우위(foreign_brokers_buying)·프로그램 순매수는
+        #     5일 점수에 직접 반영되지 않으므로, 점수가 임계값 직전(35~40, 50~55,
+        #     65~70, 80~85)일 때 한 단계 격상해 외국계 자금 시그널을 보정한다.
+        score = self.calculate_supply_score(result["supply_history"])
+        result["supply_score"] = score
 
-        if inst_strong and frgn_strong:
-            result["supply_grade"] = SupplyGrade.S
-        elif inst_strong:
-            result["supply_grade"] = SupplyGrade.A
-        elif frgn_strong:
-            result["supply_grade"] = SupplyGrade.B
-        else:
-            result["supply_grade"] = SupplyGrade.C
+        foreign_signal = result["foreign_brokers_buying"] or result["prog_net_buy"] > 0
+        if foreign_signal:
+            for low, high in [(80, 85), (65, 70), (50, 55), (35, 40)]:
+                if low <= score < high:
+                    score = high
+                    break
+
+        result["supply_grade"] = self.classify_supply_score(score)
 
         return result
 
@@ -363,10 +506,8 @@ class AnalysisEngine:
     def score_candidate(self, c: StockCandidate) -> float:
         score = 0.0
 
-        # 수급 등급 (40점)
-        grade_scores = {SupplyGrade.S: 40, SupplyGrade.A: 30,
-                        SupplyGrade.B: 15, SupplyGrade.C: 0}
-        score += grade_scores[c.supply_grade]
+        # 5일 수급 점수 (40점 만점) — 0~100점 → 0~40점 선형 환산
+        score += c.supply_score * 0.4
 
         # 정배열 + 신고가 (20점)
         if c.ma_aligned:
@@ -388,8 +529,10 @@ class AnalysisEngine:
         if c.is_theme_stock:
             score += self.cfg.THEME_STOCK_BONUS
 
-        # 연속 수급 (15점)
-        score += min(c.supply_days, 5) * 3
+        # 5일 초과 연속 수급 보너스 (15점)
+        # 5일 이내 연속성은 supply_score에 이미 반영되므로, 6~10일+ 장기 연속만 가산
+        extra_days = max(c.supply_days - 5, 0)
+        score += min(extra_days, 5) * 3
 
         # 콘텐츠 분석 (10점): 언급 횟수 + 평균 감성 점수
         if c.content_count > 0:

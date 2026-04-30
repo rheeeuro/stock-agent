@@ -16,7 +16,8 @@ def save_stock_reports(candidates: list[dict]):
         query = """
             INSERT INTO daily_stock_report
             (report_date, stock_code, stock_name, sector, current_price, change_pct,
-             trading_value, market_cap, supply_grade, inst_net_buy, frgn_net_buy,
+             trading_value, market_cap, supply_score,
+             inst_net_buy, frgn_net_buy,
              indv_net_buy, prog_net_buy, supply_days, supply_history,
              ma_aligned, near_high, hourly_candles,
              is_leader, is_theme_stock, content_score, score, rank_no)
@@ -33,7 +34,8 @@ def save_stock_reports(candidates: list[dict]):
                 c["stock_code"], c["stock_name"], c["sector"],
                 c["current_price"], c["change_pct"],
                 c["trading_value"], c["market_cap"],
-                c["supply_grade"], c["inst_net_buy"], c["frgn_net_buy"],
+                c.get("supply_score", 0.0),
+                c["inst_net_buy"], c["frgn_net_buy"],
                 c["indv_net_buy"], c["prog_net_buy"], c["supply_days"],
                 supply_history_json,
                 c["ma_aligned"], c["near_high"], hourly_candles_json,
@@ -107,8 +109,21 @@ def get_stock_report_dates(limit: int = 30) -> list[str]:
         ]
 
 
+def _score_to_grade(score: float) -> str:
+    """supply_score(0~100) → 등급 문자열. classify_supply_score와 임계값 동일."""
+    if score >= 85:
+        return "S"
+    if score >= 70:
+        return "A"
+    if score >= 55:
+        return "B"
+    if score >= 40:
+        return "C"
+    return "D"
+
+
 def _serialize_dates(row: dict):
-    """날짜 필드 직렬화"""
+    """날짜 필드 직렬화 + 점수에서 supply_grade 파생"""
     if isinstance(row.get("report_date"), (date, datetime)):
         row["report_date"] = row["report_date"].isoformat().split("T")[0]
     if isinstance(row.get("created_at"), datetime):
@@ -117,6 +132,9 @@ def _serialize_dates(row: dict):
     for key in ("ma_aligned", "near_high", "is_leader", "is_theme_stock"):
         if key in row:
             row[key] = bool(row[key])
+    # supply_score → supply_grade 파생 (DB에 등급은 저장하지 않음)
+    if "supply_score" in row:
+        row["supply_grade"] = _score_to_grade(row.get("supply_score") or 0.0)
     # supply_history JSON 파싱
     if "supply_history" in row and isinstance(row["supply_history"], str):
         row["supply_history"] = json.loads(row["supply_history"])

@@ -106,7 +106,8 @@ export interface StockReport {
   change_pct: number;
   trading_value: number;
   market_cap: number;
-  supply_grade: 'S' | 'A' | 'B' | 'C';
+  supply_grade: 'S' | 'A' | 'B' | 'C' | 'D';
+  supply_score: number;  // 최근 5일 수급 정밀 점수 (0~100)
   inst_net_buy: number;
   frgn_net_buy: number;
   indv_net_buy: number;

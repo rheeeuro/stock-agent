@@ -57,6 +57,7 @@ const GRADE_STYLE: Record<string, string> = {
   A: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
   B: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400",
   C: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  D: "bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500",
 };
 
 export default async function ReportPage({ params }: { params: { date: string } }) {
@@ -230,8 +231,8 @@ export default async function ReportPage({ params }: { params: { date: string } 
 
                         {/* 하단: 수급등급 + 등락 + 점수 */}
                         <div className="flex items-center justify-between">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${GRADE_STYLE[r.supply_grade] || GRADE_STYLE.C}`}>
-                            수급{r.supply_grade}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${GRADE_STYLE[r.supply_grade] || GRADE_STYLE.D}`}>
+                            수급{r.supply_grade} | {r.supply_score?.toFixed(0) ?? 0}
                           </span>
                           <span className={`text-xs sm:text-sm font-semibold ${isUp ? "text-red-600 dark:text-red-400" : isDown ? "text-blue-600 dark:text-blue-400" : "text-slate-500"}`}>
                             {isUp ? "+" : ""}{r.change_pct.toFixed(1)}%

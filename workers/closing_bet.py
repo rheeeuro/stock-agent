@@ -152,11 +152,12 @@ class ClosingBetStrategy:
             c.indv_net_buy = supply["indv_net_buy"]
             c.prog_net_buy = supply["prog_net_buy"]
             c.supply_grade = supply["supply_grade"]
+            c.supply_score = supply.get("supply_score", 0.0)
             c.supply_days = supply["supply_days"]
             c.supply_history = supply.get("supply_history", [])
 
-            if c.supply_grade == SupplyGrade.C:
-                logger.debug(f"수급 없음 → 제외: {c.name}")
+            if c.supply_grade == SupplyGrade.D:
+                logger.debug(f"수급 D등급(score={c.supply_score:.1f}) → 제외: {c.name}")
                 continue
 
             # 1시간봉 캔들 데이터 조회
@@ -202,7 +203,8 @@ class ClosingBetStrategy:
         for i, c in enumerate(filtered[:10], 1):
             logger.info(
                 f"  {i:2d}. [{c.supply_grade.name}] {c.name:10s} "
-                f"점수={c.score:.0f}  등락={c.change_pct:+.1f}%  "
+                f"점수={c.score:.0f}  수급={c.supply_score:.1f}  "
+                f"등락={c.change_pct:+.1f}%  "
                 f"기관={c.inst_net_buy/1e8:+,.0f}억  "
                 f"외인={c.frgn_net_buy/1e8:+,.0f}억  "
                 f"{'★대장' if c.is_leader else ''}"
@@ -227,7 +229,7 @@ class ClosingBetStrategy:
                 "change_pct": c.change_pct,
                 "trading_value": c.trading_value,
                 "market_cap": c.market_cap,
-                "supply_grade": c.supply_grade.name,
+                "supply_score": c.supply_score,
                 "inst_net_buy": c.inst_net_buy,
                 "frgn_net_buy": c.frgn_net_buy,
                 "indv_net_buy": getattr(c, "indv_net_buy", 0),

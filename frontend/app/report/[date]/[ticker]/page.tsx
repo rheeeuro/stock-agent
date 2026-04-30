@@ -21,13 +21,20 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FixedLossCalculator } from "@/components/FixedLossCalculator";
 
+function fetchOptions(date: string): RequestInit {
+  // 종가베팅 워커가 평일 30분 간격으로 daily_stock_report를 DELETE+INSERT 하므로
+  // 오늘 날짜는 no-store, 과거 날짜는 10분 정도만 캐싱.
+  const today = new Date().toLocaleDateString("en-CA");
+  return date >= today
+    ? { cache: "no-store" }
+    : ({ next: { revalidate: 600 } } as RequestInit);
+}
+
 async function getReportDetail(
   date: string,
   ticker: string
 ): Promise<StockReportDetail | null> {
-  return apiFetch(`/api/stock-report/${date}/${ticker}`, null, {
-    next: { revalidate: 3600 },
-  } as RequestInit);
+  return apiFetch(`/api/stock-report/${date}/${ticker}`, null, fetchOptions(date));
 }
 
 export async function generateMetadata({
@@ -44,7 +51,7 @@ export async function generateMetadata({
 
   const r = data.report;
   const title = `[${resolvedParams.date}] ${r.stock_name} 일간 리포트`;
-  const description = `수급등급: ${r.supply_grade} | 점수: ${r.score}점 | 기관 ${formatBillion(r.inst_net_buy)}억 | 외인 ${formatBillion(r.frgn_net_buy)}억`;
+  const description = `수급 ${r.supply_grade}(${r.supply_score?.toFixed(1) ?? 0}점) | 종합 ${r.score}점 | 기관 ${formatBillion(r.inst_net_buy)}억 | 외인 ${formatBillion(r.frgn_net_buy)}억`;
 
   return {
     title,
@@ -80,18 +87,26 @@ function formatMarketCap(val: number): string {
 }
 
 const SUPPLY_GRADE_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  S: { label: "S (외국인+기관 양매수)", color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/40" },
-  A: { label: "A (기관 강한 매수)", color: "text-orange-700 dark:text-orange-400", bg: "bg-orange-100 dark:bg-orange-900/40" },
-  B: { label: "B (외국인 단독 매수)", color: "text-yellow-700 dark:text-yellow-400", bg: "bg-yellow-100 dark:bg-yellow-900/40" },
-  C: { label: "C (해당없음)", color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
+  S: { label: "S (종가베팅 최우선)", color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/40" },
+  A: { label: "A (관심권)", color: "text-orange-700 dark:text-orange-400", bg: "bg-orange-100 dark:bg-orange-900/40" },
+  B: { label: "B (조건부 관찰)", color: "text-yellow-700 dark:text-yellow-400", bg: "bg-yellow-100 dark:bg-yellow-900/40" },
+  C: { label: "C (수급 약함)", color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800" },
+  D: { label: "D (제외)", color: "text-slate-500 dark:text-slate-500", bg: "bg-slate-50 dark:bg-slate-900" },
 };
 
-function SupplyGradeBadge({ grade }: { grade: string }) {
-  const style = SUPPLY_GRADE_STYLE[grade] || SUPPLY_GRADE_STYLE.C;
+function SupplyGradeBadge({ grade, score }: { grade: string; score?: number }) {
+  const style = SUPPLY_GRADE_STYLE[grade] || SUPPLY_GRADE_STYLE.D;
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${style.color} ${style.bg}`}>
-      {style.label}
-    </span>
+    <div className="flex items-center gap-2">
+      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${style.color} ${style.bg}`}>
+        {style.label}
+      </span>
+      {typeof score === "number" && (
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+          {score.toFixed(1)}점
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -286,7 +301,7 @@ export default async function StockReportPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <SupplyGradeBadge grade={r.supply_grade} />
+              <SupplyGradeBadge grade={r.supply_grade} score={r.supply_score} />
               <p className="text-xs text-slate-400 mt-2">
                 연속 수급 <span className="font-bold text-slate-700 dark:text-slate-300">{r.supply_days}일</span>
               </p>
@@ -504,16 +519,8 @@ export default async function StockReportPage({
           <CardContent>
             <div className="space-y-3">
               <ScoreRow
-                label="수급 등급"
-                value={
-                  r.supply_grade === "S"
-                    ? 40
-                    : r.supply_grade === "A"
-                    ? 30
-                    : r.supply_grade === "B"
-                    ? 15
-                    : 0
-                }
+                label="수급 점수"
+                value={Math.round((r.supply_score ?? 0) * 0.4)}
                 max={40}
               />
               <ScoreRow

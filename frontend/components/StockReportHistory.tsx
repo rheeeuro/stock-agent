@@ -14,6 +14,7 @@ const GRADE_STYLE: Record<string, string> = {
   A: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
   B: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400",
   C: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  D: "bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-500",
 };
 
 export function StockReportHistory({ reports }: { reports: StockReport[] }) {
@@ -81,13 +82,13 @@ export function StockReportHistory({ reports }: { reports: StockReport[] }) {
                       </div>
                     </div>
 
-                    {/* 수급등급 */}
+                    {/* 수급등급 + 점수 */}
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        GRADE_STYLE[r.supply_grade] || GRADE_STYLE.C
+                        GRADE_STYLE[r.supply_grade] || GRADE_STYLE.D
                       }`}
                     >
-                      {r.supply_grade}
+                      수급{r.supply_grade} | {r.supply_score?.toFixed(0) ?? 0}
                     </span>
 
                     {/* 등락 */}

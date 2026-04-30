@@ -41,7 +41,8 @@ class StockReport(BaseModel):
     change_pct: float = 0.0
     trading_value: int = 0
     market_cap: int = 0
-    supply_grade: str = "C"
+    supply_grade: str = "D"
+    supply_score: float = 0.0
     inst_net_buy: int = 0
     frgn_net_buy: int = 0
     indv_net_buy: int = 0
