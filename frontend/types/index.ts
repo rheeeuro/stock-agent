@@ -76,6 +76,8 @@ export interface TickerDictionary {
   ticker_symbol: string;
   market: 'KR' | 'US';
   status: 'PENDING' | 'ACTIVE' | 'INACTIVE';
+  sector?: string | null;
+  sector_updated_at?: string | null;
   created_at: string;
   updated_at: string;
 }

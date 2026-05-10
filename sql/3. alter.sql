@@ -20,7 +20,7 @@ ALTER TABLE content_analysis
     COMMENT 'related_tickers와 1:1 대응 [{"ticker":"...","sector":"..."}]';
 
 -- ============================================================
--- ticker_dictionary: 섹터 캐시 컬럼 추가 (TTL 30일)
+-- ticker_dictionary: 섹터 캐시 컬럼 추가 (TTL 1년 — 형식적 방어선, 실제로는 거의 고정값)
 -- ============================================================
 ALTER TABLE ticker_dictionary
     ADD COLUMN sector VARCHAR(100) DEFAULT NULL,

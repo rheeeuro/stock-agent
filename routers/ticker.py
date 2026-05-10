@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import mysql.connector
 
 from core.repository import get_ticker_dictionary, update_ticker, delete_ticker
+from core.sector_resolver import fetch_sector_from_api
 
 router = APIRouter(prefix="/api/ticker-dictionary", tags=["ticker-dictionary"])
 
@@ -14,6 +15,7 @@ class TickerDictionaryUpdate(BaseModel):
     ticker_symbol: str
     market: str = "KR"
     status: str
+    sector: Optional[str] = None
 
 
 @router.get("")
@@ -28,13 +30,31 @@ def get_ticker_dict(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/resolve-sector")
+def resolve_sector(
+    ticker: str = Query(..., description="티커 심볼"),
+    market: str = Query("KR", description="시장 (KR, US)"),
+):
+    """외부 API(KR=키움 ka10100, US=yfinance)에서 섹터를 즉시 조회.
+    DB에는 저장하지 않으며, 호출자가 PUT으로 저장 시 함께 캐시됨.
+    """
+    try:
+        sector = fetch_sector_from_api(ticker, market)
+        return {"success": True, "sector": sector}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/{ticker_id}")
 def update_ticker_dict(ticker_id: int, body: TickerDictionaryUpdate):
     """ticker dictionary 항목 수정"""
     if body.status not in ("PENDING", "ACTIVE", "INACTIVE"):
         raise HTTPException(status_code=400, detail="status는 PENDING, ACTIVE, INACTIVE 중 하나여야 합니다.")
     try:
-        success = update_ticker(ticker_id, body.company_name, body.ticker_symbol, body.market, body.status)
+        success = update_ticker(
+            ticker_id, body.company_name, body.ticker_symbol,
+            body.market, body.status, body.sector,
+        )
     except mysql.connector.IntegrityError as e:
         if e.errno == 1062:
             raise HTTPException(status_code=409, detail=f"이미 등록된 기업명입니다: {body.company_name}")

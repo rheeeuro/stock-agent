@@ -67,23 +67,34 @@ def get_ticker_dictionary(status: str | None = None, market: str | None = None) 
 
         results = cursor.fetchall()
         for row in results:
-            for col in ("created_at", "updated_at"):
+            for col in ("created_at", "updated_at", "sector_updated_at"):
                 if isinstance(row.get(col), datetime):
                     row[col] = row[col].isoformat()
         return results
 
 
-def update_ticker(ticker_id: int, company_name: str, ticker_symbol: str, market: str, status: str) -> bool:
-    """ticker_dictionary 항목 수정"""
+def update_ticker(
+    ticker_id: int,
+    company_name: str,
+    ticker_symbol: str,
+    market: str,
+    status: str,
+    sector: str | None = None,
+) -> bool:
+    """ticker_dictionary 항목 수정.
+    sector가 None이 아니면 sector + sector_updated_at도 함께 갱신
+    (관리자 수동 변경분이 resolver에 덮이지 않도록 TTL 리셋).
+    """
+    sets = ["company_name = %s", "ticker_symbol = %s", "market = %s", "status = %s"]
+    params: list = [company_name, ticker_symbol, market.upper(), status]
+    if sector is not None:
+        sets.append("sector = %s")
+        sets.append("sector_updated_at = CURRENT_TIMESTAMP")
+        params.append(sector or None)
+    params.append(ticker_id)
+    sql = f"UPDATE ticker_dictionary SET {', '.join(sets)} WHERE id = %s"
     with get_db() as (conn, cursor):
-        cursor.execute(
-            """
-            UPDATE ticker_dictionary
-            SET company_name = %s, ticker_symbol = %s, market = %s, status = %s
-            WHERE id = %s
-            """,
-            (company_name, ticker_symbol, market.upper(), status, ticker_id),
-        )
+        cursor.execute(sql, tuple(params))
         conn.commit()
         return cursor.rowcount > 0
 

@@ -13,7 +13,7 @@ from core.db import get_db
 
 logger = logging.getLogger(__name__)
 
-_CACHE_TTL = timedelta(days=30)
+_CACHE_TTL = timedelta(days=365)
 _kiwoom_api = None  # lazy singleton
 
 
@@ -101,6 +101,22 @@ def _resolve_us_sector(ticker: str) -> Optional[str]:
     except Exception as e:
         logger.warning(f"yfinance 섹터 조회 실패 [{ticker}]: {e}")
         return None
+
+
+def fetch_sector_from_api(ticker: str, market: str) -> Optional[str]:
+    """캐시를 거치지 않고 외부 API에서 섹터를 직접 조회.
+    관리자 수동 트리거(티커 관리 페이지의 '섹터 로드' 버튼)에서 사용.
+    DB에는 쓰지 않음 — 호출자가 update_ticker로 저장하는 경로에서 캐시도 함께 갱신.
+    """
+    market = (market or "").upper()
+    ticker = (ticker or "").strip()
+    if not ticker:
+        return None
+    if market == "KR":
+        return _resolve_kr_sector(ticker)
+    if market == "US":
+        return _resolve_us_sector(ticker)
+    return None
 
 
 def resolve_sectors(related_tickers: list[dict], market: str) -> list[dict]:
