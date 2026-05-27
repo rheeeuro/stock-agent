@@ -13,6 +13,7 @@ import {
   Settings,
   Globe,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "오늘", icon: Sparkles, match: "exact" as const },
@@ -150,6 +151,8 @@ export function Navbar() {
               )}
             </div>
           )}
+
+          <ThemeToggle />
 
           <Link
             href="/admin/tickers"

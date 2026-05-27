@@ -14,6 +14,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const PRIMARY_TABS = [
   { href: "/", label: "오늘", icon: Sparkles, match: "exact" as const },
@@ -168,6 +169,7 @@ export function MobileBottomTabs() {
 
           <div className="px-4 pb-6 pt-2">
             <div className="space-y-1.5">
+              <ThemeToggle variant="row" />
               {MORE_ITEMS.map(({ href, label, icon: Icon, desc }) => {
                 const isActive = pathname.startsWith(href);
                 return (

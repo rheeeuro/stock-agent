@@ -10,8 +10,8 @@ const GRADE_TONE: Record<string, string> = {
   S: "bg-rose-500 text-white",
   A: "bg-orange-500 text-white",
   B: "bg-amber-500 text-white",
-  C: "bg-slate-400 text-white",
-  D: "bg-slate-300 text-white",
+  C: "bg-slate-400 text-white dark:bg-slate-600",
+  D: "bg-slate-300 text-white dark:bg-slate-700",
 };
 
 type SortKey = "rank" | "score" | "change" | "supply";
