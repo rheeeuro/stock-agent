@@ -126,8 +126,8 @@ function TreemapContent(props: ContentProps) {
               textAnchor="middle"
               fill="#fff"
               fontSize={width > 110 ? 13 : 11}
-              fontWeight={700}
-              style={{ pointerEvents: "none", textShadow: "0 1px 2px rgba(0,0,0,0.35)" }}
+              fontWeight={600}
+              style={{ pointerEvents: "none" }}
             >
               {name}
             </text>
@@ -136,8 +136,9 @@ function TreemapContent(props: ContentProps) {
                 x={x + width / 2}
                 y={y + height / 2 + 14}
                 textAnchor="middle"
-                fill="rgba(255,255,255,0.9)"
+                fill="rgba(255,255,255,0.85)"
                 fontSize={10}
+                fontWeight={500}
                 style={{ pointerEvents: "none" }}
               >
                 {ticker}

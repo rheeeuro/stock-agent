@@ -60,11 +60,19 @@ export function StockReportCard({
   const isDown = r.change_pct < 0;
   const gapLines = resolveGapLines(r);
   const totalPct = finalGapPct(r);
+  const gapTone =
+    totalPct === null
+      ? "bg-white dark:bg-slate-900/60"
+      : totalPct > 0
+        ? "bg-rose-50/70 ring-1 ring-rose-200/70 dark:bg-rose-950/20 dark:ring-rose-900/40"
+        : totalPct < 0
+          ? "bg-blue-50/70 ring-1 ring-blue-200/70 dark:bg-blue-950/20 dark:ring-blue-900/40"
+          : "bg-white dark:bg-slate-900/60";
 
   return (
     <Link
       href={`/reports/${date}/${r.stock_code}`}
-      className="group rounded-2xl bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900/60"
+      className={`group rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-md ${gapTone}`}
     >
       {/* 상단: 순위 + 종목명 + 플래그 / 우측: 현재가 + 등락율 */}
       <div className="flex items-center gap-2">
@@ -133,7 +141,17 @@ export function StockReportCard({
 
       {/* 다음날 아침 갭 결과 — NXT, KRX, 최종 한 줄 */}
       {(gapLines.length > 0 || totalPct !== null) && (
-        <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] font-bold dark:bg-slate-800/60">
+        <div
+          className={`mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${
+            totalPct === null
+              ? "bg-slate-50 dark:bg-slate-800/60"
+              : totalPct > 0
+                ? "bg-rose-100/60 dark:bg-rose-950/40"
+                : totalPct < 0
+                  ? "bg-blue-100/60 dark:bg-blue-950/40"
+                  : "bg-slate-50 dark:bg-slate-800/60"
+          }`}
+        >
           {gapLines.map((g) => (
             <span
               key={g.label}
