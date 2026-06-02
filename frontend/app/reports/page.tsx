@@ -1,7 +1,11 @@
 import { DailySummary } from "@/types";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
-import { FileText, Calendar } from "lucide-react";
+import { FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ReportCalendarGrid,
+  CalendarCellData,
+} from "@/components/ReportCalendarGrid";
 
 type GapStat = { wins: number; losses: number; flats: number; total: number };
 
@@ -29,21 +33,21 @@ async function getTopThemes(
 
 export const dynamic = "force-dynamic";
 
-const WEEKDAYS = ["월", "화", "수", "목", "금"];
-
-function groupByMonth(reports: DailySummary[]) {
-  const groups = new Map<string, DailySummary[]>();
-  for (const r of reports) {
-    const month = r.report_date.slice(0, 7); // YYYY-MM
-    if (!groups.has(month)) groups.set(month, []);
-    groups.get(month)!.push(r);
-  }
-  return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-}
-
 function formatMonth(monthStr: string): string {
   const [y, m] = monthStr.split("-");
   return `${y}년 ${parseInt(m, 10)}월`;
+}
+
+// 한국 시간 기준 오늘 날짜 (YYYY-MM-DD)
+function todayInSeoul(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
+// monthStr(YYYY-MM)을 delta 개월 이동
+function shiftMonth(monthStr: string, delta: number): string {
+  const [y, m] = monthStr.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 type DayCell = { day: number; dateStr: string; report: DailySummary | null } | null;
@@ -76,21 +80,69 @@ function buildWeeks(
   return weeks;
 }
 
-export default async function ReportsArchivePage() {
+export default async function ReportsArchivePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const sp = await searchParams;
   const reports = await getDailySummaryList();
   const dates = reports.map((r) => r.report_date);
   const [gapStats, topThemes] = await Promise.all([
     getGapStats(dates),
     getTopThemes(dates),
   ]);
-  const grouped = groupByMonth(reports);
 
   const reportsByDate = new Map<string, DailySummary>();
   for (const r of reports) reportsByDate.set(r.report_date, r);
 
+  const todayStr = todayInSeoul();
+  const todayMonth = todayStr.slice(0, 7);
+
+  // 데이터가 있는 월 범위 + 오늘이 속한 월을 탐색 경계로 삼는다
+  const monthsWithData = Array.from(
+    new Set(reports.map((r) => r.report_date.slice(0, 7))),
+  ).sort();
+  const minMonth = monthsWithData[0] ?? todayMonth;
+  const maxData = monthsWithData[monthsWithData.length - 1] ?? todayMonth;
+  const maxMonth = maxData > todayMonth ? maxData : todayMonth;
+
+  // 선택된 월 (기본: 오늘이 속한 월), 경계 밖이면 클램프
+  let selectedMonth =
+    sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : todayMonth;
+  if (selectedMonth < minMonth) selectedMonth = minMonth;
+  if (selectedMonth > maxMonth) selectedMonth = maxMonth;
+
+  const prevMonth = shiftMonth(selectedMonth, -1);
+  const nextMonth = shiftMonth(selectedMonth, 1);
+  const canPrev = selectedMonth > minMonth;
+  const canNext = selectedMonth < maxMonth;
+
+  const weeks = buildWeeks(selectedMonth, reportsByDate);
+
+  // 클라이언트 컴포넌트로 넘길 직렬화 가능한 셀 데이터
+  const cellWeeks: CalendarCellData[][] = weeks.map((week) =>
+    week.map((cell) => {
+      if (!cell) return null;
+      const gap = gapStats[cell.dateStr];
+      return {
+        day: cell.day,
+        dateStr: cell.dateStr,
+        isToday: cell.dateStr === todayStr,
+        buyStock: cell.report?.buy_stock ?? "",
+        sellStock: cell.report?.sell_stock ?? "",
+        themes: (topThemes[cell.dateStr] ?? []).slice(0, 3),
+        gap:
+          gap && gap.total > 0
+            ? { wins: gap.wins, losses: gap.losses, total: gap.total }
+            : null,
+      };
+    }),
+  );
+
   return (
     <main className="min-h-screen">
-      <div className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         <header>
           <div className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
             <FileText className="h-4 w-4 text-indigo-500" />
@@ -102,144 +154,79 @@ export default async function ReportsArchivePage() {
             다시 보기.
           </h1>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            지금까지 발행된 {reports.length}건의 일일 투자 리포트.
+            날짜를 선택해 그날의 AI 투자 리포트를 확인하세요.
           </p>
         </header>
 
-        {grouped.length === 0 ? (
-          <div className="rounded-3xl bg-white p-12 text-center dark:bg-slate-900/60">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              아직 리포트가 없습니다.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-10">
-            {grouped.map(([month, monthReports]) => {
-              const weeks = buildWeeks(month, reportsByDate);
-              return (
-                <section key={month}>
-                  <h2 className="mb-4 flex items-center gap-2 text-lg font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-xl">
-                    <Calendar className="h-5 w-5 text-indigo-500" />
-                    {formatMonth(month)}
-                    <span className="text-xs font-bold text-slate-400">
-                      {monthReports.length}건
-                    </span>
-                  </h2>
+        <section>
+          {/* 월 이동 네비게이션 */}
+          <div className="mb-4 flex items-center justify-between">
+            <MonthNavButton
+              month={prevMonth}
+              disabled={!canPrev}
+              label="이전 달"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </MonthNavButton>
 
-                  {/* 요일 헤더 */}
-                  <div className="mb-1.5 grid grid-cols-5 gap-1.5 sm:gap-2">
-                    {WEEKDAYS.map((w) => (
-                      <div
-                        key={w}
-                        className="text-center text-[11px] font-extrabold text-slate-400 dark:text-slate-500"
-                      >
-                        {w}
-                      </div>
-                    ))}
-                  </div>
+            <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+              {formatMonth(selectedMonth)}
+            </h2>
 
-                  {/* 주 단위 그리드 */}
-                  <div className="space-y-1.5 sm:space-y-2">
-                    {weeks.map((week, wi) => (
-                      <div
-                        key={wi}
-                        className="grid grid-cols-5 gap-1.5 sm:gap-2"
-                      >
-                        {week.map((cell, ci) => (
-                          <CalendarCell
-                            key={ci}
-                            cell={cell}
-                            gap={cell ? gapStats[cell.dateStr] : undefined}
-                            themes={cell ? topThemes[cell.dateStr] : undefined}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+            <MonthNavButton
+              month={nextMonth}
+              disabled={!canNext}
+              label="다음 달"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </MonthNavButton>
           </div>
-        )}
+
+          {/* 캘린더 (모바일: 날짜만 → 탭하면 아래 상세, 데스크탑: 전체 내용) */}
+          {cellWeeks.length === 0 ? (
+            <div className="rounded-3xl bg-white p-12 text-center dark:bg-slate-900/60">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                이 달의 리포트가 없습니다.
+              </p>
+            </div>
+          ) : (
+            <ReportCalendarGrid weeks={cellWeeks} />
+          )}
+        </section>
       </div>
     </main>
   );
 }
 
-function CalendarCell({
-  cell,
-  gap,
-  themes,
+function MonthNavButton({
+  month,
+  disabled,
+  label,
+  children,
 }: {
-  cell: DayCell;
-  gap?: GapStat;
-  themes?: string[];
+  month: string;
+  disabled: boolean;
+  label: string;
+  children: React.ReactNode;
 }) {
-  if (!cell) {
-    return <div className="min-h-[96px] sm:min-h-[132px]" />;
-  }
-
-  // 리포트가 없는 평일
-  if (!cell.report) {
+  if (disabled) {
     return (
-      <div className="flex min-h-[96px] flex-col rounded-xl border border-dashed border-slate-200 p-2 dark:border-slate-800 sm:min-h-[132px]">
-        <span className="text-xs font-bold text-slate-300 dark:text-slate-600">
-          {cell.day}
-        </span>
-      </div>
+      <span
+        aria-label={label}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-200 dark:text-slate-700"
+      >
+        {children}
+      </span>
     );
   }
-
-  const topThemes = themes?.slice(0, 3) ?? [];
-  const hasGap = gap && gap.total > 0;
-  const r = cell.report;
-
   return (
     <Link
-      href={`/reports/${cell.dateStr}`}
-      className="group flex min-h-[96px] flex-col gap-1 rounded-xl bg-white p-2 transition-all hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-900/60 sm:min-h-[132px]"
+      href={`/reports?month=${month}`}
+      aria-label={label}
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-extrabold text-slate-900 dark:text-slate-100">
-          {cell.day}
-        </span>
-        {hasGap && (
-          <span className="rounded-full bg-amber-100 px-1 py-px text-[9px] font-extrabold tabular-nums text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-            🌅 {gap!.wins}승 {gap!.losses}패
-          </span>
-        )}
-      </div>
-
-      {/* 오늘의 종목 */}
-      <div className="space-y-0.5">
-        {r.buy_stock && (
-          <div className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
-            <span className="truncate text-[11px] font-extrabold text-slate-900 dark:text-slate-100">
-              {r.buy_stock}
-            </span>
-          </div>
-        )}
-        {r.sell_stock && (
-          <div className="flex items-center gap-1">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-            <span className="truncate text-[11px] font-bold text-slate-500 dark:text-slate-400">
-              {r.sell_stock}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-auto flex flex-wrap gap-0.5">
-        {topThemes.map((t) => (
-          <span
-            key={t}
-            className="truncate rounded bg-violet-100 px-1 py-px text-[10px] font-bold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
-          >
-            {t}
-          </span>
-        ))}
-      </div>
+      {children}
     </Link>
   );
 }
+

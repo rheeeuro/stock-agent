@@ -6,7 +6,8 @@ import { LeadingSectorsStrip } from "@/components/today/LeadingSectorsStrip";
 import { MentionPulse } from "@/components/today/MentionPulse";
 import { ContentTeaser } from "@/components/today/ContentTeaser";
 import { RecentReportsRow } from "@/components/today/RecentReportsRow";
-import { IndicesStrip } from "@/components/today/IndicesStrip";
+import { IndicesStrip, IndicesStripSkeleton } from "@/components/today/IndicesStrip";
+import { Suspense } from "react";
 
 async function getContents(): Promise<PaginatedResponse<ContentAnalysis>> {
   return apiFetch(`/api/contents?page=1&limit=6`, {
@@ -48,15 +49,21 @@ async function getMarketIndices(): Promise<{
 
 export const dynamic = "force-dynamic";
 
+// 시세 외부 API 호출로 1초 이상 걸리는 구간. 나머지 빠른 콘텐츠를 막지 않도록
+// 별도 async 컴포넌트로 분리해 Suspense로 스트리밍한다.
+async function IndicesSection() {
+  const indices = await getMarketIndices();
+  return <IndicesStrip indices={indices} />;
+}
+
 export default async function HomePage() {
-  const [contents, summary, summaryList, mentionStats, sectorReport, indices] =
+  const [contents, summary, summaryList, mentionStats, sectorReport] =
     await Promise.all([
       getContents(),
       getDailySummary(),
       getDailySummaryList(),
       getMentionStats(),
       getLatestSectorReport(),
-      getMarketIndices(),
     ]);
 
   return (
@@ -64,7 +71,9 @@ export default async function HomePage() {
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:space-y-10">
         <TodayHero summary={summary} mentionStats={mentionStats} />
         <TopPicks summary={summary} />
-        <IndicesStrip indices={indices} />
+        <Suspense fallback={<IndicesStripSkeleton />}>
+          <IndicesSection />
+        </Suspense>
         <LeadingSectorsStrip sectors={sectorReport} />
         <MentionPulse stats={mentionStats} />
         <ContentTeaser items={contents.data || []} />

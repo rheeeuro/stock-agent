@@ -40,6 +40,33 @@ export function IndicesStrip({ indices }: Props) {
   );
 }
 
+export function IndicesStripSkeleton() {
+  return (
+    <section>
+      <div className="mb-4 flex items-end justify-between gap-2">
+        <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
+          주요 지수
+        </h2>
+      </div>
+
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2.5 pb-1 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="min-w-[160px] shrink-0 rounded-2xl bg-white p-4 dark:bg-slate-900/60 sm:min-w-0"
+            >
+              <div className="h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="mt-2 h-5 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="mt-2 h-3 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function IndexChip({ idx }: { idx: MarketIndex }) {
   const isUp = (idx.change_percent ?? 0) > 0;
   const isDown = (idx.change_percent ?? 0) < 0;
