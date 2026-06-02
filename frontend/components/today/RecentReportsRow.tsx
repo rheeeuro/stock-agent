@@ -6,11 +6,6 @@ interface Props {
   reports: DailySummary[];
 }
 
-const MARKET_PILL: Record<string, string> = {
-  US: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  KR: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
-};
-
 export function RecentReportsRow({ reports }: Props) {
   if (!reports.length) return null;
 
@@ -39,16 +34,6 @@ export function RecentReportsRow({ reports }: Props) {
                   <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
                     {r.report_date}
                   </span>
-                  {r.market && (
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-extrabold ${
-                        MARKET_PILL[r.market] ||
-                        "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-                      }`}
-                    >
-                      {r.market}
-                    </span>
-                  )}
                 </div>
                 <p className="mt-2 line-clamp-2 text-sm font-extrabold text-slate-900 dark:text-slate-100">
                   {r.buy_stock || "추천 종목"}

@@ -8,12 +8,6 @@ interface Props {
   disableLink?: boolean;
 }
 
-const MARKET_LABEL: Record<string, string> = { US: "🇺🇸 미국장", KR: "🇰🇷 한국장" };
-const MARKET_STYLE: Record<string, string> = {
-  US: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  KR: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
-};
-
 export function DailySummaryCard({ summary, disableLink }: Props) {
   if (!summary) return null;
 
@@ -27,13 +21,6 @@ export function DailySummaryCard({ summary, disableLink }: Props) {
           <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
             🤖 오늘의 AI 투자 전략
           </h2>
-          {summary.market && (
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold ${MARKET_STYLE[summary.market] || "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}
-            >
-              {MARKET_LABEL[summary.market] || summary.market}
-            </span>
-          )}
         </div>
 
         <div className="flex items-center justify-between gap-3 sm:justify-end">

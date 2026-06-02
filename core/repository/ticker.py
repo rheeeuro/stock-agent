@@ -36,30 +36,27 @@ def lookup_name_by_ticker(ticker_symbol: str) -> str | None:
         return row["company_name"] if row else None
 
 
-def save_ticker(company_name: str, ticker_symbol: str, market: str = "KR", status: str = "PENDING") -> None:
+def save_ticker(company_name: str, ticker_symbol: str, status: str = "PENDING") -> None:
     """ticker_dictionary에 새 항목 추가 (중복이면 무시)"""
     with get_db() as (conn, cursor):
         cursor.execute(
             """
-            INSERT IGNORE INTO ticker_dictionary (company_name, ticker_symbol, market, status)
-            VALUES (%s, %s, %s, %s)
+            INSERT IGNORE INTO ticker_dictionary (company_name, ticker_symbol, status)
+            VALUES (%s, %s, %s)
             """,
-            (company_name, ticker_symbol, market.upper(), status),
+            (company_name, ticker_symbol, status),
         )
         conn.commit()
 
 
-def get_ticker_dictionary(status: str | None = None, market: str | None = None) -> list[dict]:
-    """ticker_dictionary 전체 조회. status, market 필터 가능"""
+def get_ticker_dictionary(status: str | None = None) -> list[dict]:
+    """ticker_dictionary 전체 조회. status 필터 가능"""
     with get_db() as (conn, cursor):
         conditions: list[str] = []
         params: list[str] = []
         if status:
             conditions.append("status = %s")
             params.append(status)
-        if market:
-            conditions.append("market = %s")
-            params.append(market.upper())
 
         where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
         order = "updated_at DESC" if conditions else "FIELD(status, 'PENDING', 'ACTIVE', 'INACTIVE'), updated_at DESC"
@@ -77,7 +74,6 @@ def update_ticker(
     ticker_id: int,
     company_name: str,
     ticker_symbol: str,
-    market: str,
     status: str,
     sector: str | None = None,
 ) -> bool:
@@ -85,8 +81,8 @@ def update_ticker(
     sector가 None이 아니면 sector + sector_updated_at도 함께 갱신
     (관리자 수동 변경분이 resolver에 덮이지 않도록 TTL 리셋).
     """
-    sets = ["company_name = %s", "ticker_symbol = %s", "market = %s", "status = %s"]
-    params: list = [company_name, ticker_symbol, market.upper(), status]
+    sets = ["company_name = %s", "ticker_symbol = %s", "status = %s"]
+    params: list = [company_name, ticker_symbol, status]
     if sector is not None:
         sets.append("sector = %s")
         sets.append("sector_updated_at = CURRENT_TIMESTAMP")

@@ -1,4 +1,4 @@
-import { BarChart3, Globe, Landmark, Gem, TrendingUp, Activity } from "lucide-react";
+import { BarChart3, Landmark, Gem, TrendingUp } from "lucide-react";
 
 function Skeleton({ className }: { className?: string }) {
   return (
@@ -53,27 +53,6 @@ function LeaderRowSkeleton() {
   );
 }
 
-function SummaryCardSkeleton() {
-  return (
-    <div className="rounded-lg border border-slate-100 p-4 dark:border-slate-800">
-      <div className="mb-2 flex items-center justify-between">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-4 w-8 rounded" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Skeleton className="mb-1 h-3 w-8" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <div>
-          <Skeleton className="mb-1 h-3 w-8" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardLoading() {
   return (
     <main className="min-h-screen bg-slate-50 p-4 sm:p-8 dark:bg-slate-950">
@@ -88,18 +67,6 @@ export default function DashboardLoading() {
             주요 시장 지표와 주도주 현황을 한눈에 확인하세요.
           </p>
         </div>
-
-        {/* 미국 시장 지수 */}
-        <SectionSkeleton
-          icon={<Globe className="h-5 w-5 text-blue-500" />}
-          title="🇺🇸 미국 시장"
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <IndexCardSkeleton key={i} />
-            ))}
-          </div>
-        </SectionSkeleton>
 
         {/* 한국 시장 지수 */}
         <SectionSkeleton
@@ -126,18 +93,7 @@ export default function DashboardLoading() {
         </SectionSkeleton>
 
         {/* 주도주 */}
-        <div className="grid gap-8 lg:grid-cols-2">
-          <SectionSkeleton
-            icon={<TrendingUp className="h-5 w-5 text-blue-500" />}
-            title="🇺🇸 미국 주도주"
-          >
-            <div className="space-y-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <LeaderRowSkeleton key={i} />
-              ))}
-            </div>
-          </SectionSkeleton>
-
+        <div className="grid gap-8">
           <SectionSkeleton
             icon={<TrendingUp className="h-5 w-5 text-red-500" />}
             title="🇰🇷 한국 주도주"
@@ -145,31 +101,6 @@ export default function DashboardLoading() {
             <div className="space-y-2">
               {Array.from({ length: 5 }).map((_, i) => (
                 <LeaderRowSkeleton key={i} />
-              ))}
-            </div>
-          </SectionSkeleton>
-        </div>
-
-        {/* AI 투자 리포트 요약 */}
-        <div className="grid gap-8 lg:grid-cols-2">
-          <SectionSkeleton
-            icon={<Activity className="h-5 w-5 text-blue-500" />}
-            title="🇺🇸 최근 AI 리포트"
-          >
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <SummaryCardSkeleton key={i} />
-              ))}
-            </div>
-          </SectionSkeleton>
-
-          <SectionSkeleton
-            icon={<Activity className="h-5 w-5 text-red-500" />}
-            title="🇰🇷 최근 AI 리포트"
-          >
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <SummaryCardSkeleton key={i} />
               ))}
             </div>
           </SectionSkeleton>

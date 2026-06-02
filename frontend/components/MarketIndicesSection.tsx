@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import type { MarketIndices } from "@/types";
 import { AnimatedMarketIndexCard } from "./AnimatedMarketIndexCard";
-import { Globe, Landmark, Gem } from "lucide-react";
+import { Landmark, Gem } from "lucide-react";
 
 const CACHE_KEY = "market-indices-cache";
 const POLL_INTERVAL = 60_000; // 1분
-const EMPTY_INDICES: MarketIndices = { US: [], KR: [], COMMODITIES: [] };
+const EMPTY_INDICES: MarketIndices = { KR: [], COMMODITIES: [] };
 
 function readCachedMarketIndices(): MarketIndices | null {
   if (typeof window === "undefined") return null;
@@ -39,13 +39,7 @@ function Section({
   );
 }
 
-export function MarketIndicesSection({
-  showUS,
-  showKR,
-}: {
-  showUS: boolean;
-  showKR: boolean;
-}) {
+export function MarketIndicesSection() {
   const [displayData, setDisplayData] = useState<MarketIndices>(() => {
     const cached = readCachedMarketIndices();
     return cached ?? EMPTY_INDICES;
@@ -104,39 +98,20 @@ export function MarketIndicesSection({
 
   return (
     <>
-      {showUS && (
-        <Section
-          icon={<Globe className="h-5 w-5 text-blue-500" />}
-          title="🇺🇸 미국 시장"
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {displayData.US.map((item) => (
-              <AnimatedMarketIndexCard
-                key={item.symbol}
-                item={item}
-                animate={animate}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {showKR && (
-        <Section
-          icon={<Landmark className="h-5 w-5 text-red-500" />}
-          title="🇰🇷 한국 시장"
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {displayData.KR.map((item) => (
-              <AnimatedMarketIndexCard
-                key={item.symbol}
-                item={item}
-                animate={animate}
-              />
-            ))}
-          </div>
-        </Section>
-      )}
+      <Section
+        icon={<Landmark className="h-5 w-5 text-red-500" />}
+        title="🇰🇷 한국 시장"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {displayData.KR.map((item) => (
+            <AnimatedMarketIndexCard
+              key={item.symbol}
+              item={item}
+              animate={animate}
+            />
+          ))}
+        </div>
+      </Section>
 
       <Section
         icon={<Gem className="h-5 w-5 text-amber-500" />}

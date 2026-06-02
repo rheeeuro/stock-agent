@@ -24,10 +24,9 @@ class ContentAnalysis(BaseModel):
 def get_contents(
     page: int = Query(1, description="현재 페이지 번호"),
     limit: int = Query(12, description="페이지 당 항목 수"),
-    market: str = Query("ALL", description="시장 필터 (ALL, US, KR 등)"),
 ):
     try:
-        result = get_contents_paginated(page, limit, market)
+        result = get_contents_paginated(page, limit)
         return {"success": True, **result}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -35,14 +34,13 @@ def get_contents(
 
 @router.get("/contents/mention-stats")
 def get_contents_mention_stats(
-    market: str = Query("ALL", description="시장 필터 (ALL, US, KR)"),
     hours: int = Query(24, ge=1, le=168, description="집계 윈도우 (시간)"),
 ):
     """최근 N시간 콘텐츠 분석에서 언급된 섹터/기업 통계 (트리맵용).
     sector=None인 ticker는 통계에서 제외.
     """
     try:
-        return {"success": True, "data": get_mention_stats(market=market, hours=hours)}
+        return {"success": True, "data": get_mention_stats(hours=hours)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

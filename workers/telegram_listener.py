@@ -15,7 +15,7 @@ from core.ai_service import analyze_content
 from core.repository import get_active_sources, save_content_analysis
 from core.filters import should_save_content, validate_analysis
 from core.notifications import send_analysis_alert
-from core.ticker import get_tickers_by_market
+from core.ticker import get_tickers
 
 setup_logging()
 
@@ -127,7 +127,7 @@ while True:
                 logging.warning(f"[{channel_name}] 환각 감지 - 저장하지 않습니다.")
                 return
 
-            tickers = get_tickers_by_market(result.related_companies, result.market)
+            tickers = get_tickers(result.related_companies)
 
             if not should_save_content(result.sentiment_score, tickers, skip_neutral=True, allow_no_ticker=False):
                 return
@@ -141,13 +141,12 @@ while True:
                 source_url=msg_link,
                 related_tickers=tickers,
                 platform='telegram',
-                market=result.market,
             )
 
             if result.sentiment_score is not None and 30 <= result.sentiment_score <= 80:
                 logging.info(f"[알림 스킵] 점수 {result.sentiment_score}점(30~80 구간)으로 텔레그램 전송 생략")
             else:
-                send_analysis_alert(channel_name, result.title, result.content, result.sentiment_score, tickers, result.market)
+                send_analysis_alert(channel_name, result.title, result.content, result.sentiment_score, tickers)
 
         client.start()
         logging.info("텔레그램 서버 연결 성공! 메시지 감시를 시작합니다.")

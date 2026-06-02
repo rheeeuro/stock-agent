@@ -50,7 +50,7 @@ def _send_telegram_admin(message: str):
     return len(chat_ids)
 
 
-def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers: list[dict] | None = None, market=None):
+def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50, related_tickers: list[dict] | None = None):
     """콘텐츠 분석 결과 텔레그램 전송 (YouTube/Telegram 공통)"""
     try:
         if score >= 80:
@@ -76,14 +76,13 @@ def send_analysis_alert(channel: str, title: str, analysis: str, score: int = 50
             f"📊 관점: {score}점 - {status}\n\n"
             f"📺 {title}\n"
             f"관련 종목: {ticker_display}\n"
-            f"시장: {market}\n"
             f"──────────────────\n"
             f"{formatted_analysis}\n\n"
             f"👉 [대시보드 바로가기](https://stock.rheeeuro.com)"
         )
 
         count = _send_telegram_message(message)
-        logging.info(f"📨 텔레그램 전송 성공: [{market}] {title} ({score}점) -> {count}개 채팅방")
+        logging.info(f"📨 텔레그램 전송 성공: {title} ({score}점) -> {count}개 채팅방")
 
     except Exception as e:
         logging.error(f"❌ 텔레그램 에러: {e}")

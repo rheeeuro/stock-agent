@@ -5,8 +5,8 @@ import { FileText, ChevronRight, Calendar } from "lucide-react";
 
 type GapStat = { wins: number; losses: number; flats: number; total: number };
 
-async function getDailySummaryList(market: string): Promise<DailySummary[]> {
-  return apiFetch(`/api/daily-summary-list?limit=100&market=${market}`, []);
+async function getDailySummaryList(): Promise<DailySummary[]> {
+  return apiFetch(`/api/daily-summary-list?limit=100`, []);
 }
 
 async function getGapStats(dates: string[]): Promise<Record<string, GapStat>> {
@@ -18,11 +18,6 @@ async function getGapStats(dates: string[]): Promise<Record<string, GapStat>> {
 }
 
 export const dynamic = "force-dynamic";
-
-const MARKET_PILL: Record<string, string> = {
-  US: "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
-  KR: "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300",
-};
 
 function groupByMonth(reports: DailySummary[]) {
   const groups = new Map<string, DailySummary[]>();
@@ -39,12 +34,8 @@ function formatMonth(monthStr: string): string {
   return `${y}년 ${parseInt(m, 10)}월`;
 }
 
-export default async function ReportsArchivePage(props: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const params = await props.searchParams;
-  const market = (params?.market as string) || "ALL";
-  const reports = await getDailySummaryList(market);
+export default async function ReportsArchivePage() {
+  const reports = await getDailySummaryList();
   const gapStats = await getGapStats(reports.map((r) => r.report_date));
   const grouped = groupByMonth(reports);
 
@@ -100,16 +91,6 @@ export default async function ReportsArchivePage(props: {
                         <span className="text-xs font-extrabold text-slate-500 dark:text-slate-400">
                           {r.report_date}
                         </span>
-                        {r.market && (
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                              MARKET_PILL[r.market] ||
-                              "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-                            }`}
-                          >
-                            {r.market}
-                          </span>
-                        )}
                       </div>
                       <div className="mt-3 space-y-1.5">
                         <div className="flex items-center gap-1.5">

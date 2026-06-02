@@ -3,22 +3,17 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface Props {
   indices: {
-    US: MarketIndex[];
     KR: MarketIndex[];
     COMMODITIES: MarketIndex[];
   } | null;
-  market: string;
 }
 
-export function IndicesStrip({ indices, market }: Props) {
+export function IndicesStrip({ indices }: Props) {
   if (!indices) return null;
 
-  const showUS = market === "ALL" || market === "US";
-  const showKR = market === "ALL" || market === "KR";
-
   const items: MarketIndex[] = [];
-  if (showKR) items.push(...(indices.KR ?? []));
-  if (showUS) items.push(...(indices.US ?? []));
+  items.push(...(indices.KR ?? []));
+  items.push(...(indices.COMMODITIES ?? []));
 
   // 가격이 있는 것만 표시 + 최대 8개
   const visible = items.filter((i) => i.price !== null).slice(0, 8);

@@ -1,6 +1,6 @@
 """일일 요약 리포트 라우트"""
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.repository import (
@@ -15,7 +15,6 @@ router = APIRouter(prefix="/api", tags=["daily-summary"])
 class DailySummary(BaseModel):
     id: int
     report_date: str
-    market: Optional[str] = None
     buy_stock: str
     buy_ticker: Optional[str] = None
     buy_reason: str
@@ -25,9 +24,9 @@ class DailySummary(BaseModel):
 
 
 @router.get("/daily-summary", response_model=Optional[DailySummary])
-def get_daily_summary(market: str = Query("ALL", description="시장 필터 (ALL, US, KR)")):
+def get_daily_summary():
     try:
-        return get_latest_daily_summary(market=market)
+        return get_latest_daily_summary()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -42,12 +41,9 @@ def get_daily_summary_date(report_date: str):
 
 
 @router.get("/daily-summary-list", response_model=List[DailySummary])
-def get_daily_summaries(
-    limit: int = 7,
-    market: str = Query("ALL", description="시장 필터 (ALL, US, KR)"),
-):
+def get_daily_summaries(limit: int = 7):
     """최근 N일치의 일일 요약 리포트 목록 조회"""
     try:
-        return get_daily_summary_list(limit, market=market)
+        return get_daily_summary_list(limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

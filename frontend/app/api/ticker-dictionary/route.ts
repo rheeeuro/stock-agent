@@ -6,10 +6,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const market = searchParams.get('market');
     const qp = new URLSearchParams();
     if (status) qp.set('status', status);
-    if (market) qp.set('market', market);
     const params = qp.toString() ? `?${qp.toString()}` : '';
 
     const res = await fetch(`${API_BASE}/api/ticker-dictionary${params}`, {

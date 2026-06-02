@@ -1,5 +1,4 @@
-"""일일 요약 리포트 생성 워커 (KR: 7:50am, US: 10:20pm)"""
-import argparse
+"""일일 요약 리포트 생성 워커 (국장, 평일 7:50am)"""
 import json
 import logging
 from datetime import datetime
@@ -17,17 +16,14 @@ setup_logging()
 
 _openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
-MARKET_LABELS = {"KR": "국내장", "US": "미국장"}
 
-
-def generate_daily_report(market: str | None = None):
+def generate_daily_report():
     try:
-        market_label = MARKET_LABELS.get(market, "전체")
-        logging.info(f"오늘의 데이터 조회 중... (대상: {market_label})")
-        rows = get_recent_analyses(hours=15, market=market)
+        logging.info("오늘의 데이터 조회 중...")
+        rows = get_recent_analyses(hours=15)
 
         if not rows:
-            logging.info(f"오늘 수집된 {market_label} 데이터가 없습니다. (분석 건너뜀)")
+            logging.info("오늘 수집된 데이터가 없습니다. (분석 건너뜀)")
             return
 
         reports_text = ""
@@ -78,7 +74,6 @@ def generate_daily_report(market: str | None = None):
             sell_stock=result.get('sell_stock'),
             sell_ticker=result.get('sell_ticker', ''),
             sell_reason=result.get('sell_reason'),
-            market=market,
         )
 
         logging.info("리포트 생성 완료!")
@@ -96,7 +91,4 @@ def generate_daily_report(market: str | None = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--market", choices=["US", "KR"], default=None, help="대상 시장 (US: 미국장, KR: 국내장)")
-    args = parser.parse_args()
-    generate_daily_report(market=args.market)
+    generate_daily_report()

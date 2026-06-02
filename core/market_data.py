@@ -15,13 +15,6 @@ from core.repository.ticker import lookup_name_by_ticker
 # ── 시장 지수 정의 ──
 
 MARKET_INDICES = {
-    "US": [
-        {"symbol": "^GSPC", "name": "S&P 500"},
-        {"symbol": "^IXIC", "name": "NASDAQ"},
-        {"symbol": "^DJI", "name": "다우존스"},
-        {"symbol": "^VIX", "name": "VIX (공포지수)"},
-        {"symbol": "DX-Y.NYB", "name": "달러 인덱스"},
-    ],
     "KR": [
         {"symbol": "^KS11", "name": "코스피"},
         {"symbol": "^KQ11", "name": "코스닥"},
@@ -37,15 +30,6 @@ MARKET_INDICES = {
 # ── 시장별 주도주 ──
 
 MARKET_LEADERS = {
-    "US": [
-        {"symbol": "AAPL", "name": "Apple"},
-        {"symbol": "NVDA", "name": "NVIDIA"},
-        {"symbol": "MSFT", "name": "Microsoft"},
-        {"symbol": "GOOGL", "name": "Alphabet"},
-        {"symbol": "AMZN", "name": "Amazon"},
-        {"symbol": "TSLA", "name": "Tesla"},
-        {"symbol": "META", "name": "Meta"},
-    ],
     "KR": [
         {"symbol": "005930.KS", "name": "삼성전자"},
         {"symbol": "000660.KS", "name": "SK하이닉스"},

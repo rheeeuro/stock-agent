@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { MarketIndex, StockReport } from "@/types";
 import { MarketIndicesSection } from "@/components/MarketIndicesSection";
@@ -35,12 +34,6 @@ async function getLatestStockReports(): Promise<{
 }
 
 export function MarketClient() {
-  const searchParams = useSearchParams();
-  const currentMarket = searchParams.get("market") || "ALL";
-  const showUS = currentMarket === "ALL" || currentMarket === "US";
-  const showKR = currentMarket === "ALL" || currentMarket === "KR";
-
-  const [usLeaders, setUsLeaders] = useState<MarketIndex[]>([]);
   const [krLeaders, setKrLeaders] = useState<MarketIndex[]>([]);
   const [latestReports, setLatestReports] = useState<{
     date: string;
@@ -57,21 +50,12 @@ export function MarketClient() {
     async function loadMarketData() {
       setLeadersLoading(true);
 
-      const [nextUsLeaders, nextKrLeaders, nextLatestReports] =
-        await Promise.all([
-          showUS
-            ? clientFetch<MarketIndex[]>("/api/market-leaders/US", [])
-            : Promise.resolve([]),
-          showKR
-            ? clientFetch<MarketIndex[]>("/api/market-leaders/KR", [])
-            : Promise.resolve([]),
-          showKR
-            ? getLatestStockReports()
-            : Promise.resolve({ date: "", reports: [] }),
-        ]);
+      const [nextKrLeaders, nextLatestReports] = await Promise.all([
+        clientFetch<MarketIndex[]>("/api/market-leaders/KR", []),
+        getLatestStockReports(),
+      ]);
 
       if (cancelled) return;
-      setUsLeaders(nextUsLeaders);
       setKrLeaders(nextKrLeaders);
       setLatestReports(nextLatestReports);
       setLeadersLoading(false);
@@ -82,7 +66,7 @@ export function MarketClient() {
     return () => {
       cancelled = true;
     };
-  }, [showUS, showKR]);
+  }, []);
 
   return (
     <main className="min-h-screen">
@@ -100,40 +84,28 @@ export function MarketClient() {
           </h1>
         </div>
 
-        <MarketIndicesSection showUS={showUS} showKR={showKR} />
+        <MarketIndicesSection />
 
-        <div className={`grid gap-4 ${showUS && showKR ? "lg:grid-cols-2" : ""}`}>
-          {showUS && (
-            <LeaderPanel
-              title="미국 주도주"
-              accent="text-blue-500"
-              icon={<TrendingUp className="h-5 w-5" />}
-            >
-              <LeaderList items={usLeaders} loading={leadersLoading} />
-            </LeaderPanel>
-          )}
-
-          {showKR && (
-            <LeaderPanel
-              title="한국 주도주"
-              accent="text-rose-500"
-              icon={<TrendingUp className="h-5 w-5" />}
-            >
-              {latestReports.reports.length > 0 ? (
-                <div className="space-y-2">
-                  {latestReports.reports.slice(0, 10).map((r) => (
-                    <StockReportRow
-                      key={r.stock_code}
-                      report={r}
-                      date={latestReports.date}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <LeaderList items={krLeaders} loading={leadersLoading} />
-              )}
-            </LeaderPanel>
-          )}
+        <div className="grid gap-4">
+          <LeaderPanel
+            title="한국 주도주"
+            accent="text-rose-500"
+            icon={<TrendingUp className="h-5 w-5" />}
+          >
+            {latestReports.reports.length > 0 ? (
+              <div className="space-y-2">
+                {latestReports.reports.slice(0, 10).map((r) => (
+                  <StockReportRow
+                    key={r.stock_code}
+                    report={r}
+                    date={latestReports.date}
+                  />
+                ))}
+              </div>
+            ) : (
+              <LeaderList items={krLeaders} loading={leadersLoading} />
+            )}
+          </LeaderPanel>
         </div>
       </div>
     </main>

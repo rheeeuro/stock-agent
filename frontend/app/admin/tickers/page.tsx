@@ -26,7 +26,6 @@ import {
 
 
 type StatusFilter = "ALL" | "PENDING" | "ACTIVE" | "INACTIVE";
-type MarketFilter = "ALL" | "KR" | "US";
 
 const STATUS_CONFIG: Record<
   string,
@@ -53,14 +52,12 @@ export default function TickerDictionaryPage() {
   const [tickers, setTickers] = useState<TickerDictionary[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [marketFilter, setMarketFilter] = useState<MarketFilter>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [editItem, setEditItem] = useState<TickerDictionary | null>(null);
   const [editForm, setEditForm] = useState({
     company_name: "",
     ticker_symbol: "",
-    market: "KR" as string,
     status: "PENDING" as string,
     sector: "" as string,
   });
@@ -77,7 +74,6 @@ export default function TickerDictionaryPage() {
     try {
       const qp = new URLSearchParams();
       if (statusFilter !== "ALL") qp.set("status", statusFilter);
-      if (marketFilter !== "ALL") qp.set("market", marketFilter);
       const params = qp.toString() ? `?${qp.toString()}` : "";
       const res = await fetch(`/api/ticker-dictionary${params}`);
       if (res.ok) {
@@ -88,7 +84,7 @@ export default function TickerDictionaryPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, marketFilter]);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchTickers();
@@ -99,7 +95,6 @@ export default function TickerDictionaryPage() {
     setEditForm({
       company_name: item.company_name,
       ticker_symbol: item.ticker_symbol,
-      market: item.market,
       status: item.status,
       sector: item.sector ?? "",
     });
@@ -109,7 +104,6 @@ export default function TickerDictionaryPage() {
   const hasEditChanges = !!editItem && (
     editForm.company_name.trim() !== editItem.company_name ||
     editForm.ticker_symbol.trim() !== editItem.ticker_symbol ||
-    editForm.market !== editItem.market ||
     editForm.status !== editItem.status ||
     editForm.sector.trim() !== (editItem.sector ?? "")
   );
@@ -125,7 +119,6 @@ export default function TickerDictionaryPage() {
     try {
       const qp = new URLSearchParams({
         ticker: editForm.ticker_symbol.trim(),
-        market: editForm.market,
       });
       const res = await fetch(`/api/ticker-dictionary/resolve-sector?${qp.toString()}`);
       if (!res.ok) {
@@ -161,7 +154,6 @@ export default function TickerDictionaryPage() {
           body: JSON.stringify({
             company_name: editForm.company_name.trim(),
             ticker_symbol: editForm.ticker_symbol.trim(),
-            market: editForm.market,
             status: editForm.status,
             sector: editForm.sector.trim(),
           }),
@@ -198,7 +190,6 @@ export default function TickerDictionaryPage() {
           body: JSON.stringify({
             company_name: item.company_name,
             ticker_symbol: item.ticker_symbol,
-            market: item.market,
             status: "ACTIVE",
           }),
         }
@@ -293,24 +284,6 @@ export default function TickerDictionaryPage() {
                 )
               )}
             </div>
-
-            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 hidden sm:block" />
-
-            <div className="flex gap-2">
-              {(["ALL", "KR", "US"] as MarketFilter[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMarketFilter(m)}
-                  className={`px-3 py-2 rounded-full text-xs font-bold transition-all ${
-                    marketFilter === m
-                      ? "bg-indigo-500 text-white shadow-md"
-                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
-                  }`}
-                >
-                  {m === "ALL" ? "전체 시장" : m === "KR" ? "🇰🇷 한국" : "🇺🇸 미국"}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="relative w-full sm:w-64">
@@ -348,9 +321,6 @@ export default function TickerDictionaryPage() {
                     <th className="text-left p-4 font-semibold text-slate-600 dark:text-slate-400">
                       티커
                     </th>
-                    <th className="text-center p-4 font-semibold text-slate-600 dark:text-slate-400">
-                      시장
-                    </th>
                     <th className="text-left p-4 font-semibold text-slate-600 dark:text-slate-400">
                       섹터
                     </th>
@@ -380,11 +350,6 @@ export default function TickerDictionaryPage() {
                           <code className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded font-mono text-slate-700 dark:text-slate-300">
                             {item.ticker_symbol}
                           </code>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="text-xs font-medium">
-                            {item.market === "KR" ? "🇰🇷" : item.market === "US" ? "🇺🇸" : item.market}
-                          </span>
                         </td>
                         <td className="p-4 text-xs text-slate-600 dark:text-slate-300">
                           {item.sector ? (
@@ -501,28 +466,6 @@ export default function TickerDictionaryPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                  시장
-                </label>
-                <div className="flex gap-2">
-                  {(["KR", "US"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() =>
-                        setEditForm((f) => ({ ...f, market: m }))
-                      }
-                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-all ${
-                        editForm.market === m
-                          ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:border-slate-100"
-                          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-                      }`}
-                    >
-                      {m === "KR" ? "🇰🇷 한국" : "🇺🇸 미국"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                   섹터
                 </label>
                 <div className="flex items-center gap-2">
@@ -549,7 +492,7 @@ export default function TickerDictionaryPage() {
                   </Button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  KR=키움 API · US=yfinance에서 조회. 저장 시 1년간 자동 갱신 차단.
+                  키움 API에서 조회. 저장 시 1년간 자동 갱신 차단.
                 </p>
               </div>
               <div>

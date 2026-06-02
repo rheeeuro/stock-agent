@@ -16,9 +16,9 @@ async function getLatestSectorReport(): Promise<{
   return { date: dates[0], sectors };
 }
 
-async function getMentionStats(market: string): Promise<MentionStats | null> {
+async function getMentionStats(): Promise<MentionStats | null> {
   const res = await apiFetch<{ success: boolean; data: MentionStats } | null>(
-    `/api/contents/mention-stats?market=${market}`,
+    `/api/contents/mention-stats`,
     null,
   );
   return res?.success ? res.data : null;
@@ -26,15 +26,10 @@ async function getMentionStats(market: string): Promise<MentionStats | null> {
 
 export const dynamic = "force-dynamic";
 
-export default async function SectorsPage(props: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const params = await props.searchParams;
-  const market = (params?.market as string) || "ALL";
-
+export default async function SectorsPage() {
   const [{ date, sectors }, mentionStats] = await Promise.all([
     getLatestSectorReport(),
-    getMentionStats(market),
+    getMentionStats(),
   ]);
 
   // 섹터별 언급 수 맵

@@ -8,21 +8,15 @@ from core.db import get_db
 from core.ai_utils import remove_markdown_code_blocks
 
 
-def get_contents_paginated(page: int = 1, limit: int = 12, market: str = "ALL") -> dict:
+def get_contents_paginated(page: int = 1, limit: int = 12) -> dict:
     """페이지네이션된 콘텐츠 목록 조회"""
     with get_db() as (conn, cursor):
         offset = (page - 1) * limit
 
         where_clause = "WHERE created_at >= NOW() - INTERVAL 7 DAY"
-        params: list = []
-
-        if market in ("US", "KR"):
-            where_clause += " AND market = %s"
-            params.append(market)
 
         cursor.execute(
             f"SELECT COUNT(*) as total_count FROM content_analysis {where_clause}",
-            tuple(params),
         )
         total_count = cursor.fetchone()["total_count"]
 
@@ -30,12 +24,12 @@ def get_contents_paginated(page: int = 1, limit: int = 12, market: str = "ALL") 
             f"""
             SELECT id, external_id, source_name, title,
                    analysis_content, sentiment_score,
-                   platform, market, source_url, created_at, related_tickers
+                   platform, source_url, created_at, related_tickers
             FROM content_analysis {where_clause}
             ORDER BY created_at DESC
             LIMIT %s OFFSET %s
             """,
-            tuple(params + [limit, offset]),
+            (limit, offset),
         )
         result = cursor.fetchall()
 
@@ -105,7 +99,6 @@ def save_content_analysis(
     source_url: str,
     related_tickers: list,
     platform: str,
-    market: str,
 ):
     """콘텐츠 분석 결과 저장 (telegram / youtube 공통).
     related_tickers의 종목별 섹터를 동기 조회해 ticker_sectors에 함께 저장.
@@ -116,7 +109,7 @@ def save_content_analysis(
     ticker_sectors_json: str | None = None
     try:
         from core.sector_resolver import resolve_sectors  # 지연 import: 순환참조 방지
-        sectors = resolve_sectors(related_tickers or [], market)
+        sectors = resolve_sectors(related_tickers or [])
         if sectors:
             ticker_sectors_json = json.dumps(sectors, ensure_ascii=False)
     except Exception as e:
@@ -126,16 +119,16 @@ def save_content_analysis(
         query = """
             INSERT INTO content_analysis
             (external_id, source_name, title, analysis_content, sentiment_score,
-             source_url, related_tickers, platform, market, ticker_sectors)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+             source_url, related_tickers, platform, ticker_sectors)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             external_id, source_name, title, content, score,
-            source_url, json.dumps(related_tickers), platform, market,
+            source_url, json.dumps(related_tickers), platform,
             ticker_sectors_json,
         ))
         conn.commit()
-    logging.info(f"DB 저장 완료: [{market}] {title} (점수: {score}, 티커: {related_tickers})")
+    logging.info(f"DB 저장 완료: {title} (점수: {score}, 티커: {related_tickers})")
 
 
 def get_today_content_by_stock(stock_code: str) -> list[dict]:
@@ -148,7 +141,6 @@ def get_today_content_by_stock(stock_code: str) -> list[dict]:
                    source_name, platform, source_url, created_at
             FROM content_analysis
             WHERE DATE(created_at) = CURDATE()
-              AND market = 'KR'
               AND related_tickers LIKE %s
             ORDER BY created_at DESC
             """,
@@ -175,7 +167,6 @@ def get_content_by_stock_and_date(
                    source_name, platform, source_url, created_at
             FROM content_analysis
             WHERE DATE(created_at) = %s
-              AND market = 'KR'
               AND related_tickers LIKE %s
             ORDER BY created_at DESC
             """,
@@ -190,7 +181,7 @@ def get_content_by_stock_and_date(
         return results
 
 
-def get_recent_analyses(hours: int = 24, market: str | None = None) -> list[dict]:
+def get_recent_analyses(hours: int = 24) -> list[dict]:
     """최근 N시간 내 수집된 분석 데이터 조회 (일일 요약용)"""
     with get_db() as (conn, cursor):
         query = """
@@ -198,26 +189,17 @@ def get_recent_analyses(hours: int = 24, market: str | None = None) -> list[dict
             FROM content_analysis
             WHERE created_at >= NOW() - INTERVAL %s HOUR
         """
-        params: list = [hours]
-
-        if market in ("US", "KR"):
-            query += " AND market = %s"
-            params.append(market)
-
-        cursor.execute(query, tuple(params))
+        cursor.execute(query, (hours,))
         return cursor.fetchall()
 
 
-def get_mention_stats(market: str = "ALL", hours: int = 12) -> dict:
+def get_mention_stats(hours: int = 12) -> dict:
     """최근 N시간 콘텐츠의 섹터/티커 언급 통계 (트리맵용).
     sector=None인 ticker는 통계에서 제외 (이전 합의).
     한 콘텐츠 내 동일 ticker는 1회만 카운트.
     """
     where = "WHERE created_at >= NOW() - INTERVAL %s HOUR"
     params: list = [hours]
-    if market in ("US", "KR"):
-        where += " AND market = %s"
-        params.append(market)
 
     with get_db() as (conn, cursor):
         cursor.execute(
@@ -299,7 +281,6 @@ def get_mention_stats(market: str = "ALL", hours: int = 12) -> dict:
 
     return {
         "window_hours": hours,
-        "market": market,
         "total_contents": total_contents,
         "total_mentions": total_mentions,
         "dropped_unmapped_count": dropped,

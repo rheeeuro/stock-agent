@@ -5,10 +5,9 @@ import { ArrowRight } from "lucide-react";
 
 interface Props {
   items: ContentAnalysis[];
-  market: string;
 }
 
-export function ContentTeaser({ items, market }: Props) {
+export function ContentTeaser({ items }: Props) {
   if (!items.length) return null;
 
   return (
@@ -18,7 +17,7 @@ export function ContentTeaser({ items, market }: Props) {
           오늘 주목할 콘텐츠
         </h2>
         <Link
-          href={`/feed?market=${market}&page=1`}
+          href="/feed?page=1"
           className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
         >
           전체 보기

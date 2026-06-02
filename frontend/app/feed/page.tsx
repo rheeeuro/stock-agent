@@ -7,9 +7,8 @@ import { ChevronLeft, ChevronRight, Newspaper } from "lucide-react";
 async function getContents(
   page: number,
   limit: number,
-  market: string,
 ): Promise<PaginatedResponse<ContentAnalysis>> {
-  return apiFetch(`/api/contents?page=${page}&limit=${limit}&market=${market}`, {
+  return apiFetch(`/api/contents?page=${page}&limit=${limit}`, {
     success: false,
     data: [],
     pagination: null,
@@ -22,11 +21,10 @@ export default async function FeedPage(props: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await props.searchParams;
-  const market = (params?.market as string) || "ALL";
   const page = Number(params?.page) || 1;
   const limit = 12;
 
-  const contentsRes = await getContents(page, limit, market);
+  const contentsRes = await getContents(page, limit);
   const data = contentsRes.data || [];
   const pagination = contentsRes.pagination;
 
@@ -73,7 +71,7 @@ export default async function FeedPage(props: {
         {pagination && pagination.total_pages > 1 && (
           <div className="flex items-center justify-center gap-3 pt-4">
             <PageButton
-              href={`/feed?market=${market}&page=${pagination.current_page - 1}`}
+              href={`/feed?page=${pagination.current_page - 1}`}
               disabled={!pagination.has_prev_page}
               direction="prev"
             />
@@ -81,7 +79,7 @@ export default async function FeedPage(props: {
               {pagination.current_page} / {pagination.total_pages}
             </span>
             <PageButton
-              href={`/feed?market=${market}&page=${pagination.current_page + 1}`}
+              href={`/feed?page=${pagination.current_page + 1}`}
               disabled={!pagination.has_next_page}
               direction="next"
             />

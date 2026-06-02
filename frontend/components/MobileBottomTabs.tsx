@@ -42,7 +42,6 @@ function isActiveTab(pathname: string, href: string, match?: "exact") {
 export function MobileBottomTabs() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentMarket = searchParams.get("market") || "ALL";
   const [moreOpen, setMoreOpen] = useState(false);
 
   // 경로 변경 시 더보기 시트 자동 닫기
@@ -63,9 +62,8 @@ export function MobileBottomTabs() {
   }, [moreOpen]);
 
   function buildHref(href: string) {
-    if (href === "/feed") return `/feed?market=${currentMarket}&page=1`;
-    if (href.startsWith("/admin")) return href;
-    return `${href}?market=${currentMarket}`;
+    if (href === "/feed") return "/feed?page=1";
+    return href;
   }
 
   const isMoreActive =

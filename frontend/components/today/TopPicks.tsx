@@ -7,8 +7,6 @@ interface Props {
   summary: DailySummary | null;
 }
 
-const MARKET_LABEL: Record<string, string> = { US: "🇺🇸 미국장", KR: "🇰🇷 한국장" };
-
 export function TopPicks({ summary }: Props) {
   if (!summary) {
     return (
@@ -42,14 +40,12 @@ export function TopPicks({ summary }: Props) {
           stock={summary.buy_stock}
           ticker={summary.buy_ticker}
           reason={summary.buy_reason}
-          market={summary.market}
         />
         <PickCard
           tone="sell"
           stock={summary.sell_stock}
           ticker={summary.sell_ticker}
           reason={summary.sell_reason}
-          market={summary.market}
         />
       </div>
     </section>
@@ -61,13 +57,11 @@ function PickCard({
   stock,
   ticker,
   reason,
-  market,
 }: {
   tone: "buy" | "sell";
   stock: string;
   ticker?: string;
   reason: string;
-  market?: "US" | "KR" | null;
 }) {
   const isBuy = tone === "buy";
   const bg = isBuy
@@ -90,11 +84,6 @@ function PickCard({
           <Icon className="h-3.5 w-3.5" />
           {label}
         </span>
-        {market && (
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-            {MARKET_LABEL[market]}
-          </span>
-        )}
       </div>
 
       <div className="mt-4 flex items-baseline gap-2">

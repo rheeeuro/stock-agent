@@ -5,9 +5,8 @@ export interface ContentAnalysis {
   title: string;          
   analysis_content: string;
   sentiment_score?: number;
-  platform: 'youtube' | 'telegram' | 'news'; 
-  market: 'US' | 'KR' | 'CRYPTO' | "UNKNOWN";
-  source_url?: string;    
+  platform: 'youtube' | 'telegram' | 'news';
+  source_url?: string;
   created_at: string;
   related_tickers?: { ticker: string; name: string }[];
 }
@@ -15,7 +14,6 @@ export interface ContentAnalysis {
 export interface DailySummary {
   id: number;
   report_date: string;
-  market?: 'US' | 'KR' | null;
   buy_stock: string;
   buy_ticker?: string;
   buy_reason: string;
@@ -47,7 +45,6 @@ export interface MarketIndex {
 }
 
 export interface MarketIndices {
-  US: MarketIndex[];
   KR: MarketIndex[];
   COMMODITIES: MarketIndex[];
 }
@@ -74,7 +71,6 @@ export interface TickerDictionary {
   id: number;
   company_name: string;
   ticker_symbol: string;
-  market: 'KR' | 'US';
   status: 'PENDING' | 'ACTIVE' | 'INACTIVE';
   sector?: string | null;
   sector_updated_at?: string | null;
@@ -186,7 +182,6 @@ export interface MentionSector {
 
 export interface MentionStats {
   window_hours: number;
-  market: string;
   total_contents: number;
   total_mentions: number;
   dropped_unmapped_count: number;

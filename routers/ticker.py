@@ -13,7 +13,6 @@ router = APIRouter(prefix="/api/ticker-dictionary", tags=["ticker-dictionary"])
 class TickerDictionaryUpdate(BaseModel):
     company_name: str
     ticker_symbol: str
-    market: str = "KR"
     status: str
     sector: Optional[str] = None
 
@@ -21,11 +20,10 @@ class TickerDictionaryUpdate(BaseModel):
 @router.get("")
 def get_ticker_dict(
     status: Optional[str] = Query(None, description="상태 필터 (PENDING, ACTIVE, INACTIVE)"),
-    market: Optional[str] = Query(None, description="시장 필터 (KR, US)"),
 ):
     """ticker dictionary 목록 조회"""
     try:
-        return get_ticker_dictionary(status, market)
+        return get_ticker_dictionary(status)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -33,13 +31,12 @@ def get_ticker_dict(
 @router.get("/resolve-sector")
 def resolve_sector(
     ticker: str = Query(..., description="티커 심볼"),
-    market: str = Query("KR", description="시장 (KR, US)"),
 ):
-    """외부 API(KR=키움 ka10100, US=yfinance)에서 섹터를 즉시 조회.
+    """키움 ka10100에서 섹터를 즉시 조회 (국장 전용).
     DB에는 저장하지 않으며, 호출자가 PUT으로 저장 시 함께 캐시됨.
     """
     try:
-        sector = fetch_sector_from_api(ticker, market)
+        sector = fetch_sector_from_api(ticker)
         return {"success": True, "sector": sector}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -53,7 +50,7 @@ def update_ticker_dict(ticker_id: int, body: TickerDictionaryUpdate):
     try:
         success = update_ticker(
             ticker_id, body.company_name, body.ticker_symbol,
-            body.market, body.status, body.sector,
+            body.status, body.sector,
         )
     except mysql.connector.IntegrityError as e:
         if e.errno == 1062:

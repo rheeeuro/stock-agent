@@ -18,7 +18,6 @@ _COMMON_ANALYSIS_INSTRUCTIONS = """
         🚨주의: 기업명만 단독으로 작성해라. 절대로 "엔비디아(NVDA)", "Tesla(TSLA)" 같은 '이름(티커)' 형식을 사용하지 마라! 올바른 예: "엔비디아", "테슬라". 잘못된 예: "엔비디아(NVDA)", "Tesla(TSLA)", "삼성전자(005930)"
         🚨주의: 티커 심볼(NVDA, AAPL, TSLA, 005930 등)을 절대 넣지 마라! 반드시 정식 기업명(엔비디아, 애플, 테슬라, 삼성전자)으로 작성해라.
         🚨주의: "반도체주", "AI주", "2차전지주", "배터리주", "자동차주", "IT주", "바이오주" 같은 섹터/테마/업종 카테고리명은 기업이 아니다. 절대 포함하지 마라! 구체적인 개별 기업명만 넣어라.
-    - market: 주로 다루는 시장. 🚨반드시 다음 4개 값 중 하나만 사용: "US", "KR", "CRYPTO", "UNKNOWN". 이 외의 값(예: "IN", "JP", "EU", "CN" 등)은 절대 사용 금지! 해당 국가가 없으면 "UNKNOWN"을 사용해라.
 
     [content Markdown 템플릿 - 반드시 이 구조를 따를 것]:
     
@@ -63,8 +62,7 @@ _COMMON_JSON_FORMAT = """
 {{
     "sentiment_score": 75,
     "content": "## 1. 3줄 핵심 요약\\n- 요약1\\n- 요약2\\n- 요약3\\n\\n## 2. 주요 언급 종목\\n- **종목명**: 호재/악재 판단\\n\\n## 3. 대응 전략\\n> 한 줄 조언",
-    "related_companies": ["삼성전자", "SK하이닉스"],
-    "market": "US"
+    "related_companies": ["삼성전자", "SK하이닉스"]
 }}
 """
 
@@ -92,8 +90,7 @@ TELEGRAM_ANALYSIS_PROMPT = _COMMON_ANALYSIS_INSTRUCTIONS + """
     "sentiment_score": 75,
     "title": "엔비디아 실적 호조에 AI 반도체주 동반 상승 전망",
     "content": "## 1. 3줄 핵심 요약\\n- 요약1\\n- 요약2\\n- 요약3\\n\\n## 2. 주요 언급 종목\\n- **종목명**: 호재/악재 판단\\n\\n## 3. 대응 전략\\n> 한 줄 조언",
-    "related_companies": ["삼성전자", "SK하이닉스"],
-    "market": "US"
+    "related_companies": ["삼성전자", "SK하이닉스"]
 }}
 
 [메시지 내용]: {text}

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { API_BASE } from '@/lib/api';
 
-// GET /api/ticker-dictionary/resolve-sector?ticker=...&market=... — 섹터 조회 프록시
+// GET /api/ticker-dictionary/resolve-sector?ticker=... — 섹터 조회 프록시
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const ticker = searchParams.get('ticker');
-    const market = searchParams.get('market') || 'KR';
     if (!ticker) {
       return NextResponse.json({ error: 'ticker가 필요합니다.' }, { status: 400 });
     }
-    const qp = new URLSearchParams({ ticker, market });
+    const qp = new URLSearchParams({ ticker });
     const res = await fetch(
       `${API_BASE}/api/ticker-dictionary/resolve-sector?${qp.toString()}`,
       { cache: 'no-store' },

@@ -17,13 +17,6 @@ import { ExternalLink, Youtube, MessageCircle, TrendingUp, TrendingDown, Minus, 
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 
-const MARKET_ICONS: Record<string, string> = {
-  US: '🇺🇸',
-  KR: '🇰🇷',
-  CRYPTO: '🪙',
-  UNKNOWN: '❓',
-};
-
 interface Props {
   item: ContentAnalysis;
 }
@@ -73,9 +66,6 @@ function CardBody({ item }: { item: ContentAnalysis }) {
               <Badge variant="secondary" className="bg-blue-100 text-blue-600 dark:bg-blue-900/30">
                 <MessageCircle className="w-3 h-3 mr-1" /> Telegram
               </Badge>
-            )}
-            {item.market && MARKET_ICONS[item.market] && (
-              <span className="text-sm" title={item.market}>{MARKET_ICONS[item.market]}</span>
             )}
             <span className="text-xs text-slate-500 font-medium truncate max-w-[100px]">
               {item.source_name}
@@ -157,10 +147,7 @@ export function ContentCard({ item }: Props) {
               ) : (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-600">Telegram</Badge>
               )}
-              {item.market && MARKET_ICONS[item.market] && (
-                <span className="text-base" title={item.market}>{MARKET_ICONS[item.market]}</span>
-              )}
-              <Badge 
+              <Badge
                 variant="outline" 
                 className="truncate max-w-[150px] sm:max-w-[250px] block" 
                 title={item.source_name}

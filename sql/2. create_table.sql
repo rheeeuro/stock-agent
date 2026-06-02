@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS content_analysis (
     analysis_content TEXT,                    -- AI 분석 결과
     sentiment_score INT DEFAULT 50,           -- 감성 점수 (0~100, 기본 50=중립)
     platform VARCHAR(20) DEFAULT 'youtube',   -- 'youtube', 'telegram', 'news'
-    market VARCHAR(10) DEFAULT 'UNKNOWN',     -- 'US', 'KR', 'CRYPTO', 'UNKNOWN'
     source_url VARCHAR(255),                  -- 원문 링크
     related_tickers VARCHAR(255) DEFAULT NULL, -- JSON 배열 [{"ticker":"...", "name":"..."}]
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -24,7 +23,6 @@ CREATE TABLE IF NOT EXISTS content_analysis (
 CREATE TABLE IF NOT EXISTS daily_summary (
     id INT AUTO_INCREMENT PRIMARY KEY,
     report_date DATE NOT NULL,
-    market VARCHAR(10) DEFAULT NULL,
     buy_stock VARCHAR(100),
     buy_ticker VARCHAR(20),
     buy_reason TEXT,
@@ -56,7 +54,6 @@ CREATE TABLE ticker_dictionary (
     id INT AUTO_INCREMENT PRIMARY KEY,
     company_name VARCHAR(100) UNIQUE NOT NULL,
     ticker_symbol VARCHAR(50) NOT NULL,
-    market VARCHAR(10) DEFAULT 'KR',       -- 'KR', 'US' 등
     status VARCHAR(20) DEFAULT 'PENDING',  -- 'PENDING'(대기중), 'ACTIVE'(검증완료), 'INACTIVE'(비활성)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
