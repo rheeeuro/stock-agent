@@ -1,0 +1,67 @@
+# Stock Agent — 에이전트 작업 가이드
+
+> 이 파일은 **모든 AI 코딩 에이전트의 단일 소스(single source of truth)**다.
+> Codex 는 `AGENTS.md` 를, Claude Code 는 `CLAUDE.md`(→ 이 파일을 import)를 읽는다.
+> 규칙을 바꿀 땐 **이 파일만** 수정한다.
+
+실시간 한국 주식 분석 플랫폼. 콘텐츠(유튜브/텔레그램/뉴스)를 LLM으로 분석하고,
+수급·기술적 스크리닝으로 종목을 점수화해 일일 리포트와 매매 시그널을 만든다.
+**Python 백엔드(분석/트레이딩/워커) + Next.js 프론트(대시보드)** 하이브리드.
+
+## 디렉터리 구조
+- `core/` — 비즈니스 로직. `ai_service.py`(LLM 추상화), `trading_engine.py`(종가베팅 전략),
+  `db.py`, `config.py`, `repository/`(DB 접근 계층, 패턴 준수 필수)
+- `routers/` — FastAPI 라우트 핸들러 (`api.py`의 `app`에 등록)
+- `workers/` — PM2 cron 백그라운드 잡 (daily_digest, youtube_collector, telegram_listener,
+  gap_check, closing_bet, kiwoom_token_refresh)
+- `frontend/` — Next.js 16 App Router + Tailwind 4 + recharts. `app/`(페이지), `components/`,
+  `lib/api.ts`(fetch 래퍼, API_BASE=:8000), `types/index.ts`
+- `sql/` — DB 스키마 (MariaDB)
+
+## 명령어
+| 목적 | 명령 |
+|---|---|
+| API 기동 | `uv run uvicorn api:app --host 127.0.0.1 --port 8000` |
+| 워커 단발 실행 | `uv run workers/<name>.py` |
+| 프론트 dev | `cd frontend && npm run dev` (`:3000`) |
+| 프론트 검증 | `cd frontend && npx tsc --noEmit && npm run lint` |
+| Python 문법 검증 | `uv run python -m py_compile <file>` |
+| 전체 운영 | `pm2 start ecosystem.config.js` / `pm2 logs` / `pm2 status` |
+| DB 콘솔 | `docker exec -it <mariadb 컨테이너> mysql -u<user> -p<pw> <db>` |
+
+## 아키텍처 규칙
+- **DB 접근은 반드시 `core/repository/*` 패턴을 따른다.** 라우터/워커에서 raw SQL 직접 작성 금지.
+- **LLM 호출은 `core/ai_service.analyze_content()` 추상화를 사용한다.** Ollama(로컬, 콘텐츠 분석)와
+  OpenAI(일일 다이제스트)를 그 안에서 분기한다. 직접 SDK 호출 추가 금지.
+- 새 라우터는 `routers/`에 만들고 `api.py`에 `include_router` 등록.
+- 도메인 용어 유지: 수급(기관/외국인/개인/프로그램), 테마, 갭, 종가베팅, rank_no.
+
+## 프론트엔드 규칙
+- **모바일 우선(mobile-first)**. 이 대시보드는 모바일에서 자주 쓰인다. 모든 UI는 작은 화면을
+  먼저 만족시키고 `sm:`/`md:`로 확장한다. 데스크탑만 보고 끝내지 말 것.
+- 차트는 recharts, 아이콘은 lucide-react, 스타일은 Tailwind 4 유틸리티.
+- 타입은 `types/index.ts`에 정의하고 백엔드 응답 shape과 일치시킨다.
+
+## ⚠️ 절대 규칙 (가드레일)
+- `core/trading_engine.py`, `core/prompts.py`는 **git 미추적 민감 파일**이다. 변경은 복구 불가하고
+  팀에 공유되지 않는다. 수정 전 반드시 사용자 확인을 받고, 수정 시 변경 내용을 명시한다.
+  요청 없는 리팩터링/정리 금지.
+- `.env`, `*.session`, `mariadb_data/`, `ollama_data/`는 읽기·수정·커밋 금지.
+- 비밀키/토큰을 코드나 로그에 하드코딩하지 않는다. 모두 `.env` → `core/config.py` 경유.
+
+## 검증 (테스트 없음 — 모든 에이전트 공통)
+자동화 테스트가 없으므로 "띄워서 확인"이 표준이다. 작업 완료 전 **반드시** 수행한다:
+1. 프론트(`.ts/.tsx`) 변경 → `cd frontend && npx tsc --noEmit && npm run lint`
+2. Python(`.py`) 변경 → 바뀐 파일마다 `uv run python -m py_compile <file>`
+3. 라우터/응답 변경 → API 기동 후 `curl`로 엔드포인트 status·shape 확인
+4. UI 변경 → `:3000` 라우트 200 + **모바일 레이아웃** 우선 점검
+
+실패가 있으면 수정 후 다시 통과시킨 뒤에만 완료로 보고한다. 추측 금지 — 실행 결과로 보고한다.
+
+## 도구별 하네스 메모
+- **Claude Code**: `.claude/` 에 자동화 레이어가 있다 — 편집 후 위 검증을 자동 실행하는 훅,
+  민감 파일 편집 차단 훅, 슬래시 커맨드(`/check` `/run-api` `/run-web` `/db` `/new-card` `/new-worker`),
+  전문 서브에이전트(backend/frontend/verify). 위 "검증" 단계가 훅으로 강제된다.
+- **Codex** (및 기타): 위 자동화가 없으므로 **검증 단계를 직접 실행**해야 한다. 가드레일(민감 파일,
+  비밀키)도 사람이 지키듯 스스로 지킨다. 설정은 글로벌 `~/.codex/config.toml`,
+  승인/샌드박스는 실행 플래그로 조절한다.

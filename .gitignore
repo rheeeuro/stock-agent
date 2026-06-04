@@ -22,7 +22,10 @@ ecosystem.config.js
 docker-compose.yml
 stock_session.*
 .gap_check_pending.json
-.claude/
+
+# AI 에이전트 하네스: AGENTS.md/CLAUDE.md/.claude 는 공유 추적,
+# Claude 개인 로컬 설정만 제외
+.claude/settings.local.json
 
 # 핵심 로직
 core/trading_engine.py
