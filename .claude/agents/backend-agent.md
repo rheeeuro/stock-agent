@@ -21,6 +21,6 @@ tools: Bash, Read, Edit, Write, Grep, Glob
 - `.env`, `*.session` 은 읽기/수정 금지.
 
 ## 검증
-- 편집한 `.py` 는 `uv run python -m py_compile <file>` 통과.
-- 라우터/응답 변경 시 `uv run uvicorn api:app --host 127.0.0.1 --port 8000` 기동 후 `curl` 로 확인.
+- 편집한 `.py` 는 `uv run --directory jongalab python -m py_compile <file>` 통과.
+- 라우터/응답 변경 시 `uv run --directory jongalab uvicorn api:app --host 127.0.0.1 --port 8000` 기동 후 `curl` 로 확인.
 - 결과는 변경 요약 + 검증 결과(통과/실패)로 보고한다.

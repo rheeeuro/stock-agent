@@ -19,6 +19,6 @@ tools: Bash, Read, Edit, Write, Grep, Glob
 - 차트는 recharts, 아이콘은 lucide-react.
 
 ## 검증
-- 편집 후 `cd frontend && npx tsc --noEmit` + `npm run lint` 통과 필수.
+- 편집 후 `cd jongalab/frontend && npx tsc --noEmit` + `npm run lint` 통과 필수.
 - UI 변경은 `npm run dev`(:3000) 로 띄워 대상 라우트 200 확인, **모바일 레이아웃 우선 점검**.
 - 결과는 변경 요약 + 검증 결과(통과/실패)로 보고한다.

@@ -30,5 +30,5 @@ stock_session.*
 .claude/.pending-changes
 
 # 핵심 로직
-core/trading_engine.py
-core/prompts.py
+jongalab/core/trading_engine.py
+jongalab/core/prompts.py

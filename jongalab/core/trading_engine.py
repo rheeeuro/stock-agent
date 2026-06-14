@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-from core.kiwoom_api import KiwoomRestAPI
+from core.kiwoom_client import KiwoomRestClient
 
 logger = logging.getLogger("ClosingBet")
 
@@ -150,7 +150,7 @@ class Position:
 # ============================================================
 
 class AnalysisEngine:
-    def __init__(self, api: KiwoomRestAPI, config: StrategyConfig):
+    def __init__(self, api: KiwoomRestClient, config: StrategyConfig):
         self.api = api
         self.cfg = config
 

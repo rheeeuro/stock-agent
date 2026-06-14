@@ -14,17 +14,16 @@ from pykrx import stock as pykrx_stock
 from core.repository.ticker import lookup_name_by_ticker
 
 
-# ── 키움 API (국내 종목 시세 — lazy singleton) ──
+# ── 키움 데이터 서버 클라이언트 (국내 종목 시세 — lazy singleton, HTTP) ──
 _kiwoom_api = None
 
 
 def _get_kiwoom():
-    """국내 종목 조회용 키움 API 인스턴스 (lazy init + ensure_token)"""
+    """국내 종목 조회용 키움 HTTP 클라이언트 (lazy init). 토큰은 서버가 보장."""
     global _kiwoom_api
     if _kiwoom_api is None:
-        from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
-        _kiwoom_api = KiwoomRestAPI(KiwoomConfig())
-    _kiwoom_api.ensure_token()
+        from core.kiwoom_client import KiwoomRestClient
+        _kiwoom_api = KiwoomRestClient()
     return _kiwoom_api
 
 

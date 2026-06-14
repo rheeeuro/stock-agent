@@ -9,23 +9,39 @@
 **Python 백엔드(분석/트레이딩/워커) + Next.js 프론트(대시보드)** 하이브리드.
 
 ## 디렉터리 구조
+루트는 **`jongalab/`(메인 앱)** 과 **`kiwoom/`(키움 데이터 전용 서버)** 로 분리된다.
+공통 인프라는 각자 최소 복제하고, **키움 토큰(`kiwoom_token` 테이블)은 같은 MariaDB 를 공유**한다.
+
+### `jongalab/` — 메인 앱 (분석/트레이딩/워커/프론트)
 - `core/` — 비즈니스 로직. `ai_service.py`(LLM 추상화), `trading_engine.py`(종가베팅 전략),
-  `db.py`, `config.py`, `repository/`(DB 접근 계층, 패턴 준수 필수)
+  `db.py`, `config.py`, `kiwoom_client.py`(키움 데이터 서버 HTTP 클라이언트), `repository/`(DB 접근 계층, 패턴 준수 필수)
 - `routers/` — FastAPI 라우트 핸들러 (`api.py`의 `app`에 등록)
 - `workers/` — PM2 cron 백그라운드 잡 (daily_digest, youtube_collector, telegram_listener,
-  gap_check, closing_bet, kiwoom_token_refresh)
+  gap_check, closing_bet)
 - `frontend/` — Next.js 16 App Router + Tailwind 4 + recharts. `app/`(페이지), `components/`,
   `lib/api.ts`(fetch 래퍼, API_BASE=:8000), `types/index.ts`
-- `sql/` — DB 스키마 (MariaDB)
+
+### `kiwoom/` — 키움 데이터 전용 서버 (FastAPI, :8001)
+- `core/kiwoom_api.py`(키움 REST 클라이언트), `core/repository/kiwoom_token.py`(토큰 저장),
+  `core/{config,db,logging_setup}.py`(DB 키만 가진 최소 복제)
+- `api.py` — 데이터 조회 엔드포인트(소비자가 쓰는 11종) + `/health`
+- `workers/kiwoom_token_refresh.py` — 매일 07:00 토큰 갱신 (cron)
+- **데이터 조회 전용**: 주문/계좌는 노출하지 않는다. jongalab 은 `core.kiwoom_client.KiwoomRestClient`
+  로 `http://127.0.0.1:8001` 호출(`KIWOOM_BASE_URL`).
+
+### 루트
+- `sql/` — DB 스키마 (MariaDB), `ecosystem.config.js`, `.env`(단일, 양쪽이 절대경로로 로드), `.claude/`
 
 ## 명령어
+> 파이썬 명령은 해당 서브프로젝트 디렉터리(`jongalab/` 또는 `kiwoom/`)에서 실행한다.
 | 목적 | 명령 |
 |---|---|
-| API 기동 | `uv run uvicorn api:app --host 127.0.0.1 --port 8000` |
-| 워커 단발 실행 | `uv run workers/<name>.py` |
-| 프론트 dev | `cd frontend && npm run dev` (`:3000`) |
-| 프론트 검증 | `cd frontend && npx tsc --noEmit && npm run lint` |
-| Python 문법 검증 | `uv run python -m py_compile <file>` |
+| jongalab API 기동 | `uv run --directory jongalab uvicorn api:app --host 127.0.0.1 --port 8000` |
+| kiwoom API 기동 | `uv run --directory kiwoom uvicorn api:app --host 127.0.0.1 --port 8001` |
+| 워커 단발 실행 | `uv run --directory jongalab workers/<name>.py` |
+| 프론트 dev | `cd jongalab/frontend && npm run dev` (`:3000`) |
+| 프론트 검증 | `cd jongalab/frontend && npx tsc --noEmit && npm run lint` |
+| Python 문법 검증 | `uv run --directory <jongalab\|kiwoom> python -m py_compile <relpath>` |
 | 전체 운영 | `pm2 start ecosystem.config.js` / `pm2 logs` / `pm2 status` |
 | DB 콘솔 | `docker exec -it <mariadb 컨테이너> mysql -u<user> -p<pw> <db>` |
 
@@ -43,8 +59,8 @@
 - 타입은 `types/index.ts`에 정의하고 백엔드 응답 shape과 일치시킨다.
 
 ## ⚠️ 절대 규칙 (가드레일)
-- `core/trading_engine.py`, `core/prompts.py`는 **git 미추적 민감 파일**이다. 변경은 복구 불가하고
-  팀에 공유되지 않는다. 수정 전 반드시 사용자 확인을 받고, 수정 시 변경 내용을 명시한다.
+- `jongalab/core/trading_engine.py`, `jongalab/core/prompts.py`는 **민감 로직 파일**이다(가드 훅이 편집 차단).
+  변경은 복구 불가하고 팀에 공유되지 않는다. 수정 전 반드시 사용자 확인을 받고, 수정 시 변경 내용을 명시한다.
   요청 없는 리팩터링/정리 금지.
 - `.env`, `*.session`, `mariadb_data/`, `ollama_data/`는 읽기·수정·커밋 금지.
 - 비밀키/토큰을 코드나 로그에 하드코딩하지 않는다. 모두 `.env` → `core/config.py` 경유.
@@ -64,9 +80,11 @@
   전문 서브에이전트(backend/frontend/verify). 위 "검증" 단계가 훅으로 강제된다.
 - **Claude Code 자동 배포 훅**: 코드 변경은 턴 종료(Stop) 시점에 PM2 에 자동 반영된다
   (`.claude/hooks/track-changes.sh` 가 변경 파일을 누적 → `deploy-on-stop.sh` 가 분류·실행).
-  - `frontend/**` 변경 → `npm run build` 후 `jongalab-fe` 재시작(빌드 실패 시 Stop 을 막아 이어서 고치게 함).
+  - `jongalab/frontend/**` 변경 → `npm run build` 후 `jongalab-fe` 재시작(빌드 실패 시 Stop 을 막아 이어서 고치게 함).
     또한 프론트 편집마다 **모바일 최우선** 가이드가 컨텍스트로 주입된다.
-  - `api.py`/`routers/**`/`core/**` → `jongalab-be` 재시작, `core/**`·`telegram_listener.py` → `jongalab-telegram` 재시작.
+  - `jongalab/api.py`/`jongalab/routers/**`/`jongalab/core/**` → `jongalab-be` 재시작,
+    `jongalab/core/**`·`telegram_listener.py` → `jongalab-telegram` 재시작.
+  - `kiwoom/api.py`/`kiwoom/core/**` → `kiwoom-api` 재시작.
   - cron 워커(`youtube_collector`/`daily_digest`/`gap_check`/`closing_bet`/`kiwoom_token_refresh`)는
     **재시작하지 않는다** — cron 마다 새 프로세스로 spawn 되어 다음 스케줄 실행 때 자동 반영된다.
   - 해당 PM2 앱이 `online` 이 아니거나 pm2 가 없으면 조용히 건너뛴다.

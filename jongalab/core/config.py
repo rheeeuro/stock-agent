@@ -2,9 +2,12 @@
 공통 설정 모듈 - DB 설정, 환경변수, 상수를 한 곳에서 관리
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# cwd 가 jongalab/ 이므로 리포지토리 루트(.env)를 절대경로로 명시 로드한다.
+# jongalab/core/config.py → parents[2] == 리포지토리 루트
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # DB 설정
 DB_CONFIG = {
@@ -33,3 +36,6 @@ OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'exaone3.5:7.8b')
 # OpenAI 설정 (일간 리포트용)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5.4-nano')
+
+# 키움 데이터 서버 (별도 FastAPI, localhost) — core.kiwoom_client 가 호출
+KIWOOM_BASE_URL = os.getenv('KIWOOM_BASE_URL', 'http://127.0.0.1:8001')

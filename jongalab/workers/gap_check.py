@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from core.logging_setup import setup_logging
-from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
+from core.kiwoom_client import KiwoomRestClient
 from core.trading_engine import AnalysisEngine
 from core.repository.stock_report import (
     get_stock_report_dates,
@@ -44,7 +44,7 @@ def _query_stocks(
     stk_postfix: ka10001 stk_cd 접미사 — ""=KRX, "_NX"=NXT, "_AL"=SOR
     detect_pending=True면 조회 실패/빈값을 pending으로 분류 (09:10 재조회 대상)
     """
-    api = KiwoomRestAPI(KiwoomConfig())
+    api = KiwoomRestClient()
     api.ensure_token()
     rows = []
     for r in reports:

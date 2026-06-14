@@ -74,8 +74,5 @@ from core.repository.ticker import (
     delete_ticker,
 )
 
-from core.repository.kiwoom_token import (
-    get_token as get_kiwoom_token,
-    save_token as save_kiwoom_token,
-    clear_token as clear_kiwoom_token,
-)
+# 키움 토큰 저장은 별도 kiwoom 데이터 서버가 소유한다(kiwoom/core/repository/kiwoom_token.py).
+# jongalab 은 토큰을 직접 다루지 않으므로 여기서 re-export 하지 않는다.

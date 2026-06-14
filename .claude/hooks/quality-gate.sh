@@ -18,7 +18,7 @@ except Exception:
 
 case "$FILE" in
   *frontend/*.ts|*frontend/*.tsx)
-    OUT=$(cd "$ROOT/frontend" && npx tsc --noEmit 2>&1)
+    OUT=$(cd "$ROOT/jongalab/frontend" && npx tsc --noEmit 2>&1)
     if [ $? -ne 0 ]; then
       echo "❌ tsc 타입 체크 실패 (frontend):" >&2
       echo "$OUT" | tail -30 >&2
@@ -26,10 +26,15 @@ case "$FILE" in
     fi
     ;;
   *.py)
-    REL="${FILE#$ROOT/}"
-    OUT=$(cd "$ROOT" && uv run python -m py_compile "$REL" 2>&1)
+    # 파일이 속한 서브프로젝트(jongalab/kiwoom)에서 컴파일한다(루트는 더 이상 uv 프로젝트 아님).
+    case "$FILE" in
+      */jongalab/*) SUB="jongalab"; REL="${FILE##*/jongalab/}" ;;
+      */kiwoom/*)   SUB="kiwoom";   REL="${FILE##*/kiwoom/}" ;;
+      *) exit 0 ;;
+    esac
+    OUT=$(uv run --directory "$ROOT/$SUB" python -m py_compile "$REL" 2>&1)
     if [ $? -ne 0 ]; then
-      echo "❌ Python 컴파일 실패: $REL" >&2
+      echo "❌ Python 컴파일 실패: $SUB/$REL" >&2
       echo "$OUT" | tail -20 >&2
       exit 2
     fi

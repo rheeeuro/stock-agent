@@ -23,24 +23,29 @@ except Exception: print("0")
 # 변경 파일 중복 제거
 mapfile -t FILES < <(sort -u "$PENDING")
 
-NEED_WEB=0; NEED_API=0; NEED_TG=0
+NEED_WEB=0; NEED_API=0; NEED_TG=0; NEED_KIWOOM=0
 declare -A CRON_HIT=()
 
 for f in "${FILES[@]}"; do
+  # ── jongalab (메인 앱) ──
   case "$f" in
-    *frontend/*) NEED_WEB=1 ;;
+    */jongalab/frontend/*)                        NEED_WEB=1 ;;
   esac
   case "$f" in
-    */api.py|*/routers/*.py)            NEED_API=1 ;;
+    */jongalab/api.py|*/jongalab/routers/*.py)    NEED_API=1 ;;
   esac
   case "$f" in
-    */core/*.py)                        NEED_API=1; NEED_TG=1 ;;   # core 는 api·telegram 공유
-    */workers/telegram_listener.py)     NEED_TG=1 ;;
-    */workers/youtube_collector.py)     CRON_HIT[jongalab-collector]=1 ;;
-    */workers/daily_digest.py)          CRON_HIT[jongalab-daily-report]=1 ;;
-    */workers/gap_check.py)             CRON_HIT[jongalab-gap-check]=1 ;;
-    */workers/closing_bet.py)           CRON_HIT[jongalab-closing-bet]=1 ;;
-    */workers/kiwoom_token_refresh.py)  CRON_HIT[kiwoom-token-refresh]=1 ;;
+    */jongalab/core/*.py)                         NEED_API=1; NEED_TG=1 ;;   # core 는 api·telegram 공유
+    */jongalab/workers/telegram_listener.py)      NEED_TG=1 ;;
+    */jongalab/workers/youtube_collector.py)      CRON_HIT[jongalab-collector]=1 ;;
+    */jongalab/workers/daily_digest.py)           CRON_HIT[jongalab-daily-report]=1 ;;
+    */jongalab/workers/gap_check.py)              CRON_HIT[jongalab-gap-check]=1 ;;
+    */jongalab/workers/closing_bet.py)            CRON_HIT[jongalab-closing-bet]=1 ;;
+  esac
+  # ── kiwoom (데이터 전용 서버) ──
+  case "$f" in
+    */kiwoom/api.py|*/kiwoom/core/*.py)           NEED_KIWOOM=1 ;;
+    */kiwoom/workers/kiwoom_token_refresh.py)     CRON_HIT[kiwoom-token-refresh]=1 ;;
   esac
 done
 
@@ -68,7 +73,7 @@ BUILD_FAILED=""
 # 1) 프론트: 빌드 후 재시작
 if [ "$NEED_WEB" = "1" ]; then
   echo "🛠  frontend 변경 감지 → npm run build" >&2
-  BUILD_OUT=$(cd "$ROOT/frontend" && npm run build 2>&1)
+  BUILD_OUT=$(cd "$ROOT/jongalab/frontend" && npm run build 2>&1)
   if [ $? -ne 0 ]; then
     BUILD_FAILED="$BUILD_OUT"
   else
@@ -86,6 +91,15 @@ if [ "$NEED_API" = "1" ]; then
     pm2 restart jongalab-be >/dev/null 2>&1 && NOTES+=("✅ jongalab-be 재시작")
   else
     NOTES+=("ℹ️ jongalab-be 변경됨(앱이 online 아님 — 재시작 생략)")
+  fi
+fi
+
+# 2-1) 키움 데이터 API (별도 서버)
+if [ "$NEED_KIWOOM" = "1" ]; then
+  if is_online kiwoom-api; then
+    pm2 restart kiwoom-api >/dev/null 2>&1 && NOTES+=("✅ kiwoom-api 재시작")
+  else
+    NOTES+=("ℹ️ kiwoom-api 변경됨(앱이 online 아님 — 재시작 생략)")
   fi
 fi
 

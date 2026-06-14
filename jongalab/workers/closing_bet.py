@@ -10,7 +10,7 @@ import time
 import logging
 from datetime import datetime
 
-from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
+from core.kiwoom_client import KiwoomRestClient
 from core.trading_engine import (
     StrategyConfig,
     SupplyGrade,
@@ -27,10 +27,9 @@ logger = logging.getLogger("ClosingBet")
 
 class ClosingBetStrategy:
     def __init__(self):
-        self.api_cfg = KiwoomConfig()
         self.strategy_cfg = StrategyConfig()
         self.strategy_cfg.load_from_db()
-        self.api = KiwoomRestAPI(self.api_cfg)
+        self.api = KiwoomRestClient()
         self.engine = AnalysisEngine(self.api, self.strategy_cfg)
 
     def run(self):

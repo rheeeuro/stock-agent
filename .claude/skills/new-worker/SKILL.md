@@ -27,4 +27,4 @@ description: PM2 cron 백그라운드 워커를 스캐폴드하고 ecosystem.con
      env: { NODE_ENV: "production" }
    }
    ```
-4. 단발 테스트: `uv run workers/<name>.py`
+4. 단발 테스트: `uv run --directory jongalab workers/<name>.py`

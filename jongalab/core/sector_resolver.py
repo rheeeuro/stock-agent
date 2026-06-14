@@ -15,12 +15,11 @@ _kiwoom_api = None  # lazy singleton
 
 
 def _get_kiwoom_api():
-    """KR 섹터 조회용 키움 API 인스턴스 (lazy init + ensure_token)"""
+    """KR 섹터 조회용 키움 HTTP 클라이언트 (lazy init). 토큰은 서버가 보장."""
     global _kiwoom_api
     if _kiwoom_api is None:
-        from core.kiwoom_api import KiwoomConfig, KiwoomRestAPI
-        _kiwoom_api = KiwoomRestAPI(KiwoomConfig())
-    _kiwoom_api.ensure_token()
+        from core.kiwoom_client import KiwoomRestClient
+        _kiwoom_api = KiwoomRestClient()
     return _kiwoom_api
 
 

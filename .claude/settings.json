@@ -2,16 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(uv run :*)",
-      "Bash(cd frontend && npx tsc --noEmit)",
-      "Bash(cd frontend && npm run lint)",
-      "Bash(cd frontend && npm run dev)",
+      "Bash(cd jongalab/frontend && npx tsc --noEmit)",
+      "Bash(cd jongalab/frontend && npm run lint)",
+      "Bash(cd jongalab/frontend && npm run dev)",
       "Bash(npx tsc --noEmit)",
       "Bash(npm run lint)",
       "Bash(pm2 logs :*)",
       "Bash(pm2 status)",
       "Bash(pm2 jlist)",
       "Bash(pm2 restart :*)",
-      "Bash(cd frontend && npm run build)",
+      "Bash(cd jongalab/frontend && npm run build)",
       "Bash(docker exec :*)",
       "Bash(docker ps :*)",
       "Bash(curl -s http://127.0.0.1:* :*)",
@@ -21,8 +21,8 @@
     ],
     "deny": [
       "Read(./.env)",
-      "Read(./*.session)",
-      "Read(./*.session-journal)",
+      "Read(./**/*.session)",
+      "Read(./**/*.session-journal)",
       "Read(./mariadb_data/**)",
       "Read(./ollama_data/**)"
     ]
